@@ -22,6 +22,8 @@
 - **Interoperability**: Seamless conversion to/from SciPy `scipy.sparse` and NumPy arrays.
 - **Safety and speed**: Safe Rust by default; `unsafe` only in hot kernels with tests/benchmarks.
 
+- **Parallel+SIMD first**: Every production kernel is implemented with native multithreading and SIMD from day one; reference scalar paths live only in `lacuna-core`.
+
 ## High-Level Architecture
 
 - **lacuna-core (Rust crate)**: Data structures (formats), traits, core kernels, no Python.
@@ -29,6 +31,43 @@
 - **lacuna-io (Rust crate)**: MatrixMarket/NPZ readers/writers (optional).
 - **lacuna-py (Rust crate + PyO3)**: Python bindings exposing `PyClass` wrappers; releases GIL during compute.
 - **python/lacun (Python package)**: OOP façade, format registry, dtype/index dispatch, NumPy/SciPy bridges.
+
+## Module Responsibilities
+
+- **crates/lacuna-core**
+
+  - Core storage structures for sparse formats (2D CSR/CSC; ND COO baseline; future CSF).
+  - Traits and invariants (`SparseFormat`, `SparseND`, shape/meta, iteration, validation).
+  - Reference/simple implementations used for correctness; no parallelism, no SIMD.
+  - No Python or OS threading dependencies; pure Rust, minimal deps.
+- **crates/lacuna-kernels**
+
+  - High-performance kernels for operations: SpMV/SpMM, arithmetic, reductions, conversions, ND axis ops.
+  - Mandatory native multithreading (Rayon, auto-detect threads by default) and SIMD via `std::simd` for all production kernels; scalar single-thread paths exist only as references in `lacuna-core`.
+  - May use carefully-audited `unsafe` in hot paths; deterministic reductions when required by API.
+  - Depends only on `lacuna-core` (and perf libs); no PyO3 or Python-specific code.
+- **crates/lacuna-io**
+
+  - Readers/writers for `.mtx` and `.npz`; handles ND metadata (shape, ndim) in headers.
+  - Optional streaming loaders and simple validators; not performance-critical.
+  - No Python bindings; pure Rust utilities used by bindings and CLI/scripts.
+- **crates/lacuna-py**
+
+  - PyO3 bridge: exposes Rust types/functions to Python; maps errors to Python exceptions.
+  - Releases the GIL around compute; zero-copy views to buffers when lifetime-safe.
+  - Integrates with NumPy via the `numpy` crate for arrays and dtype mapping.
+- **python/lacun**
+
+  - High-level Python API: `SparseArray`/`SparseMatrix`, `CSR`/`CSC`/`COO` classes, format registry.
+  - Construction, conversion, slicing/indexing surfaces; dispatches to Rust kernels.
+  - Thread control utilities (e.g., `set_num_threads`, env `RAYON_NUM_THREADS`); no heavy compute in Python.
+- **docs (Sphinx)**
+
+  - User guides, API docs (autodoc/napoleon/MyST), design notes and invariants.
+- **tests/benchmarks**
+
+  - Rust: per-crate unit/property tests; criterion microbenches.
+  - Python: pytest parity tests with NumPy/SciPy; pytest-benchmark scenarios.
 
 ## Data Model and Formats
 
@@ -60,6 +99,7 @@
   - Element access: `A[i, j]` read; row/column slicing.
   - Arithmetic: `A @ x` (SpMV), `A @ B_dense` (SpMM), `A + B`, scalar ops.
   - Cleanup: `eliminate_zeros`, `prune(eps)`.
+  - Performance policy: All v0.1 kernels ship with native parallelization (Rayon) and SIMD (`std::simd`) for `f64/i64`.
 - **v0.2 (COO/CSC)**:
   - Public COO/CSC types; conversions among CSR/CSC/COO.
   - Faster transpose via CSC; improved construction pipelines.
@@ -106,6 +146,7 @@
   - Parallel kernels with `rayon` enabled by default; automatically detect available hardware threads; cache-friendly loop ordering.
   - GIL released around kernels via `Python::allow_threads`.
   - Native SIMD via `std::simd` (stable) enabled by default.
+  - Acceptance gate: No sequential-only kernels are merged; each new kernel includes parallel+SIMD implementation and criterion benches.
 - **Error handling**:
   - `thiserror` in Rust; map to `LacunaError` (Python Exception).
   - Strict invariants checked at boundaries; debug assertions inside kernels.
@@ -141,7 +182,7 @@
 - **Benchmarks**:
   - Rust: `criterion` microbench (SpMV/SpMM/add/convert).
   - Python: `pytest-benchmark`; datasets: SuiteSparse small/medium, synthetic RNG.
-- **Performance gates**: PRs must not regress more than a threshold.
+- **Performance gates**: New kernels must include parallel+SIMD implementations and criterion benches; PRs must not regress beyond thresholds.
 
 ## Documentation
 
@@ -231,11 +272,12 @@ lacuna/
   - CSR invariants, constructors (from COO, from buffers).
   - SpMV/SpMM, reductions, transpose, slicing (rows/cols), prune/eliminate zeros.
   - Python OOP façade; NumPy interop; release GIL.
+  - Parallel+SIMD kernels for all operations.
 - **M2: Conversions and Formats**
   - Public COO/CSC; CSR<->COO<->CSC conversions; arithmetic `A+B`, `A*B` (Hadamard).
   - Matrix Market IO; NPZ save/load; dtype/index casting.
 - **M3: Performance and Stability**
-  - Parallel/blocked kernels, SIMD, benchmark suite, regression gates.
+  - Performance hardening: blocked/tiling strategies, cache/NUMA tuning; benchmark suite; regression gates.
   - API polish, error taxonomy, docs/tutorials.
 - **M4: Advanced**
   - BSR; iterative solvers; preconditioners; plug-in kernel strategy; optional f32.
@@ -244,7 +286,7 @@ lacuna/
 
 - **Bindings**: PyO3 + `numpy` crate; GIL released around kernels.
 - **Kernels**: Fully in-house, pure Rust implementation; no `sprs` dependency. Self-developed numeric/coefficients kernels for sparse formats; may adopt algorithmic ideas without linking to external crates.
-- **Parallelism**: `rayon` task-based; deterministic reductions where needed.
+- **Parallelism/SIMD**: `rayon` task-based + `std::simd`; mandatory from day one. Deterministic reductions where required by API.
 - **Memory**: Avoid intermediate allocations; reuse buffers; careful with aliasing/`unsafe`.
 - **Interop**: Zero-copy read-only views for `data/indices/indptr` as a first-class feature; no Python-level mutable views in v0.1.
 - **Indexing**: Default 64-bit; optional 32-bit for memory savings; conversions explicit.

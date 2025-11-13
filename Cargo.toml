@@ -5,6 +5,7 @@ members = [
     "crates/lacuna-io",
     "crates/lacuna-py",
 ]
+resolver = "3"
 
 [profile.release]
 lto = "thin"

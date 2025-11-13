@@ -5,11 +5,11 @@ edition = "2024"
 license = "Apache-2.0"
 
 [lib]
-name = "lacun_core"
+name = "_core"
 crate-type = ["cdylib"]
 
 [dependencies]
-pyo3 = { version = "0.21", features = ["extension-module"] }
-numpy = "0.21"
+pyo3 = { version = "0.27", features = ["extension-module", "abi3-py310"] }
+numpy = "0.27"
 lacuna-core = { path = "../lacuna-core" }
 lacuna-kernels = { path = "../lacuna-kernels" }

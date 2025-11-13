@@ -9,3 +9,6 @@ class SparseMatrix(SparseArray):
         if len(shape) != 2:
             raise ValueError("SparseMatrix requires 2D shape")
         super().__init__(shape, dtype=dtype)
+    def toarray(self):
+        import numpy as np
+        return np.zeros(self.shape, dtype=self.dtype)

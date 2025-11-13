@@ -33,3 +33,4 @@ include = [
   "LICENSE",
   "README.md",
 ]
+manifest-path = "crates/lacuna-py/Cargo.toml"

@@ -8,3 +8,4 @@ license = "Apache-2.0"
 lacuna-core = { path = "../lacuna-core" }
 rayon = "1"
 num-traits = "0.2"
+wide = "0.8"
