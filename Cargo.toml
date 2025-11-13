@@ -1,0 +1,12 @@
+[workspace]
+members = [
+    "crates/lacuna-core",
+    "crates/lacuna-kernels",
+    "crates/lacuna-io",
+    "crates/lacuna-py",
+]
+
+[profile.release]
+lto = "thin"
+codegen-units = 1
+opt-level = 3

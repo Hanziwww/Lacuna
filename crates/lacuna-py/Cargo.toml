@@ -1,0 +1,15 @@
+[package]
+name = "lacuna-py"
+version = "0.1.0"
+edition = "2024"
+license = "Apache-2.0"
+
+[lib]
+name = "lacun_core"
+crate-type = ["cdylib"]
+
+[dependencies]
+pyo3 = { version = "0.21", features = ["extension-module"] }
+numpy = "0.21"
+lacuna-core = { path = "../lacuna-core" }
+lacuna-kernels = { path = "../lacuna-kernels" }
