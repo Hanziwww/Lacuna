@@ -1,2 +1,11 @@
-# Auto detect text files and perform LF normalization
+# Auto normalize text files
 * text=auto
+
+# Ignore tests and benchmarks from text normalization
+test/**     -text
+tests/**    -text
+benchmark/** -text
+benchmarks/** -text
+
+# Ignore docs directory from normalization
+docs/**     -text
