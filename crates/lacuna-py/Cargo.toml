@@ -3,6 +3,11 @@ name = "lacuna-py"
 version = "0.1.0"
 edition = "2024"
 license = "Apache-2.0"
+description = "Python bindings for Lacuna via PyO3"
+repository = "https://github.com/Hanziwww/Lacuna"
+readme = "../../README.md"
+keywords = ["python", "bindings", "sparse", "csr"]
+categories = ["science", "mathematics", "algorithms"]
 
 [lib]
 name = "_core"

@@ -3,9 +3,15 @@ name = "lacuna-kernels"
 version = "0.1.0"
 edition = "2024"
 license = "Apache-2.0"
+description = "High-performance sparse matrix kernels for Lacuna"
+repository = "https://github.com/Hanziwww/Lacuna"
+readme = "../../README.md"
+keywords = ["sparse", "matrix"]
+categories = ["science", "mathematics", "algorithms"]
 
 [dependencies]
 lacuna-core = { path = "../lacuna-core" }
 rayon = "1"
 num-traits = "0.2"
 wide = "0.8"
+thread_local = "1"

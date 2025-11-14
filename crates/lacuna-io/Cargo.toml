@@ -3,5 +3,10 @@ name = "lacuna-io"
 version = "0.1.0"
 edition = "2024"
 license = "Apache-2.0"
+description = "I/O helpers for Lacuna: reading/writing sparse matrices"
+repository = "https://github.com/Hanziwww/Lacuna"
+readme = "../../README.md"
+keywords = ["sparse", "matrix", "csr"]
+categories = ["science", "mathematics", "algorithms"]
 
 [dependencies]

@@ -1,0 +1,31 @@
+name: Python Formatting
+
+on:
+  pull_request:
+  push:
+    branches: [ main, master ]
+
+jobs:
+  ruff-format:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Install Ruff
+        run: |
+          python -m pip install --upgrade pip
+          pip install ruff
+
+      - name: Check formatting with Ruff
+        run: |
+          ruff --version
+          # Check code formatting (no changes allowed)
+          ruff format --check
+          # Check import sorting only (isort rules)
+          ruff check --select I --diff

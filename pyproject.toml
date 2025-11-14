@@ -3,7 +3,7 @@ requires = ["maturin>=1,<2"]
 build-backend = "maturin"
 
 [project]
-name = "lucuna-sparse"
+name = "lacuna-sparse"
 version = "0.1.0"
 description = "High-performance sparse arrays/matrices for Python with a pure Rust core"
 readme = "README.md"
@@ -26,11 +26,31 @@ dependencies = [
 ]
 
 [tool.maturin]
-module-name = "lacun._core"
-python-packages = ["python/lacun"]
+module-name = "lacuna._core"
+python-packages = ["python/lacuna"]
 include = [
-  "python/lacun/**",
+  "python/lacuna/**",
   "LICENSE",
   "README.md",
 ]
 manifest-path = "crates/lacuna-py/Cargo.toml"
+
+[tool.ruff]
+# Python formatting and linting (format-only checks in CI)
+target-version = "py310"
+line-length = 100
+src = ["python"]
+exclude = [
+  "data",
+  "build",
+  "dist",
+  ".venv",
+  "target",
+]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+line-ending = "auto"
+docstring-code-format = true
+skip-magic-trailing-comma = false

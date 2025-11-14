@@ -20,7 +20,7 @@ fn indptr_first_must_be_zero() {
     let indices = vec![0i64];
     let data = vec![1.0f64];
     let err = Csr::from_parts(nrows, ncols, indptr, indices, data, true).unwrap_err();
-    println!("Error: {:?}", err);
+    println!("Error: {err:?}");
     assert!(err.contains("must be 0"));
 }
 
@@ -55,7 +55,7 @@ fn indptr_non_decreasing_per_row() {
     let indices = vec![0i64];
     let data = vec![1.0f64];
     let err = Csr::from_parts(nrows, ncols, indptr, indices, data, true).unwrap_err();
-    println!("Error: {:?}", err);
+    println!("Error: {err:?}");
     assert!(err.contains("must be non-decreasing"));
 }
 

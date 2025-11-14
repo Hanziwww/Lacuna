@@ -1,9 +1,10 @@
-import numpy as np
 import os
+
+import numpy as np
 import pytest
 
-from lacun.sparse.csr import CSR
-from lacun import set_num_threads, get_num_threads
+from lacuna import get_num_threads, set_num_threads
+from lacuna.sparse.csr import CSR
 
 
 def make_simple():
@@ -69,16 +70,34 @@ def test_duplicates_add_coalesce():
 
 
 def test_empty_and_zero_dim():
-    A = CSR(np.array([0, 0, 0], dtype=np.int64), np.array([], dtype=np.int64), np.array([], dtype=np.float64), (2, 3), check=True)
+    A = CSR(
+        np.array([0, 0, 0], dtype=np.int64),
+        np.array([], dtype=np.int64),
+        np.array([], dtype=np.float64),
+        (2, 3),
+        check=True,
+    )
     assert A.nnz == 0
     np.testing.assert_allclose(A.toarray(), np.zeros((2, 3)))
     AT = A.T
     assert AT.shape == (3, 2)
 
-    Zr = CSR(np.array([0], dtype=np.int64), np.array([], dtype=np.int64), np.array([], dtype=np.float64), (0, 3), check=True)
+    Zr = CSR(
+        np.array([0], dtype=np.int64),
+        np.array([], dtype=np.int64),
+        np.array([], dtype=np.float64),
+        (0, 3),
+        check=True,
+    )
     np.testing.assert_allclose(Zr.toarray(), np.zeros((0, 3)))
 
-    Zc = CSR(np.array([0, 0, 0], dtype=np.int64), np.array([], dtype=np.int64), np.array([], dtype=np.float64), (2, 0), check=True)
+    Zc = CSR(
+        np.array([0, 0, 0], dtype=np.int64),
+        np.array([], dtype=np.int64),
+        np.array([], dtype=np.float64),
+        (2, 0),
+        check=True,
+    )
     np.testing.assert_allclose(Zc.toarray(), np.zeros((2, 0)))
 
 

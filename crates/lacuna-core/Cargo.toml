@@ -3,6 +3,11 @@ name = "lacuna-core"
 version = "0.1.0"
 edition = "2024"
 license = "Apache-2.0"
+description = "Core data structures and traits for Lacuna (CSR and more)"
+repository = "https://github.com/Hanziwww/Lacuna"
+readme = "../../README.md"
+keywords = ["sparse", "matrix", "csr"]
+categories = ["science", "mathematics", "algorithms"]
 
 [dependencies]
 num-traits = "0.2"

@@ -1,32 +1,452 @@
-use rayon::prelude::*;
+#![allow(
+    clippy::similar_names,
+    reason = "Pointer/address aliases (pi/pv, etc.) are intentionally similar in low-level kernels"
+)]
+#![allow(
+    clippy::suspicious_operation_groupings,
+    reason = "Merge loop uses intended precedence for sorted index comparison"
+)]
+#![allow(
+    clippy::many_single_char_names,
+    reason = "Math kernels conventionally use i/j/k/p for indices"
+)]
+use core::cmp::Ordering;
 use lacuna_core::Csr;
+use rayon::prelude::*;
 use wide::f64x4;
 
-pub fn mul_scalar_f64(a: &Csr<f64, i64>, alpha: f64) -> Csr<f64, i64> {
-    let mut out = a.clone();
-    let aval = f64x4::splat(alpha);
-    out.data.par_chunks_mut(1024).for_each(|chunk| {
-        let mut i = 0usize;
-        let limit4 = chunk.len() & !3;
-        while i < limit4 {
-            // load
-            let v = f64x4::from([chunk[i], chunk[i + 1], chunk[i + 2], chunk[i + 3]]);
-            let r = v * aval;
-            let arr = r.to_array();
-            chunk[i] = arr[0];
-            chunk[i + 1] = arr[1];
-            chunk[i + 2] = arr[2];
-            chunk[i + 3] = arr[3];
-            i += 4;
-        }
-        while i < chunk.len() {
-            chunk[i] *= alpha;
-            i += 1;
-        }
-    });
-    out
+const SMALL_NNZ_SIMD: usize = 16 * 1024;
+
+#[inline]
+fn i64_to_usize(x: i64) -> usize {
+    debug_assert!(x >= 0);
+    #[allow(clippy::cast_sign_loss, clippy::cast_possible_truncation)]
+    {
+        x as usize
+    }
 }
 
+#[inline]
+unsafe fn add_row_count(
+    ai: *const i64,
+    av: *const f64,
+    alen: usize,
+    bi: *const i64,
+    bv: *const f64,
+    blen: usize,
+) -> usize {
+    let mut pa = 0usize;
+    let mut pb = 0usize;
+    let mut cnt = 0usize;
+    while pa < alen || pb < blen {
+        let ja = if pa < alen {
+            unsafe { *ai.add(pa) }
+        } else {
+            i64::MAX
+        };
+        let jb = if pb < blen {
+            unsafe { *bi.add(pb) }
+        } else {
+            i64::MAX
+        };
+        let j = if ja <= jb { ja } else { jb };
+        let mut v = 0.0f64;
+        while pa < alen && unsafe { *ai.add(pa) } == j {
+            v += unsafe { *av.add(pa) };
+            pa += 1;
+        }
+        while pb < blen && unsafe { *bi.add(pb) } == j {
+            v += unsafe { *bv.add(pb) };
+            pb += 1;
+        }
+        if v != 0.0 {
+            cnt += 1;
+        }
+    }
+    cnt
+}
+
+#[inline]
+#[allow(clippy::too_many_arguments)]
+unsafe fn add_row_fill(
+    ai: *const i64,
+    av: *const f64,
+    alen: usize,
+    bi: *const i64,
+    bv: *const f64,
+    blen: usize,
+    out_i: *mut i64,
+    out_v: *mut f64,
+) -> usize {
+    let mut pa = 0usize;
+    let mut pb = 0usize;
+    let mut dst = 0usize;
+    while pa < alen || pb < blen {
+        let ja = if pa < alen {
+            unsafe { *ai.add(pa) }
+        } else {
+            i64::MAX
+        };
+        let jb = if pb < blen {
+            unsafe { *bi.add(pb) }
+        } else {
+            i64::MAX
+        };
+        let j = if ja <= jb { ja } else { jb };
+        let mut v = 0.0f64;
+        while pa < alen && unsafe { *ai.add(pa) } == j {
+            v += unsafe { *av.add(pa) };
+            pa += 1;
+        }
+        while pb < blen && unsafe { *bi.add(pb) } == j {
+            v += unsafe { *bv.add(pb) };
+            pb += 1;
+        }
+        if v != 0.0 {
+            unsafe {
+                std::ptr::write(out_i.add(dst), j);
+                std::ptr::write(out_v.add(dst), v);
+            }
+            dst += 1;
+        }
+    }
+    dst
+}
+
+#[inline]
+unsafe fn sub_row_count(
+    ai: *const i64,
+    av: *const f64,
+    alen: usize,
+    bi: *const i64,
+    bv: *const f64,
+    blen: usize,
+) -> usize {
+    let mut pa = 0usize;
+    let mut pb = 0usize;
+    let mut cnt = 0usize;
+    while pa < alen || pb < blen {
+        let ja = if pa < alen {
+            unsafe { *ai.add(pa) }
+        } else {
+            i64::MAX
+        };
+        let jb = if pb < blen {
+            unsafe { *bi.add(pb) }
+        } else {
+            i64::MAX
+        };
+        let j = if ja <= jb { ja } else { jb };
+        let mut v = 0.0f64;
+        while pa < alen && unsafe { *ai.add(pa) } == j {
+            v += unsafe { *av.add(pa) };
+            pa += 1;
+        }
+        while pb < blen && unsafe { *bi.add(pb) } == j {
+            v -= unsafe { *bv.add(pb) };
+            pb += 1;
+        }
+        if v != 0.0 {
+            cnt += 1;
+        }
+    }
+    cnt
+}
+
+#[inline]
+#[allow(clippy::too_many_arguments)]
+unsafe fn sub_row_fill(
+    ai: *const i64,
+    av: *const f64,
+    alen: usize,
+    bi: *const i64,
+    bv: *const f64,
+    blen: usize,
+    out_i: *mut i64,
+    out_v: *mut f64,
+) -> usize {
+    let mut pa = 0usize;
+    let mut pb = 0usize;
+    let mut dst = 0usize;
+    while pa < alen || pb < blen {
+        let ja = if pa < alen {
+            unsafe { *ai.add(pa) }
+        } else {
+            i64::MAX
+        };
+        let jb = if pb < blen {
+            unsafe { *bi.add(pb) }
+        } else {
+            i64::MAX
+        };
+        if ja <= jb {
+            let j = ja;
+            let mut v = 0.0f64;
+            while pa < alen && unsafe { *ai.add(pa) } == j {
+                v += unsafe { *av.add(pa) };
+                pa += 1;
+            }
+            if jb == j {
+                while pb < blen && unsafe { *bi.add(pb) } == j {
+                    v -= unsafe { *bv.add(pb) };
+                    pb += 1;
+                }
+            }
+            if v != 0.0 {
+                unsafe {
+                    std::ptr::write(out_i.add(dst), j);
+                    std::ptr::write(out_v.add(dst), v);
+                }
+                dst += 1;
+            }
+        } else {
+            let j = jb;
+            let mut v = 0.0f64;
+            while pb < blen && unsafe { *bi.add(pb) } == j {
+                v -= unsafe { *bv.add(pb) };
+                pb += 1;
+            }
+            if v != 0.0 {
+                unsafe {
+                    std::ptr::write(out_i.add(dst), j);
+                    std::ptr::write(out_v.add(dst), v);
+                }
+                dst += 1;
+            }
+        }
+    }
+    dst
+}
+
+#[inline]
+unsafe fn hadamard_row_count(
+    ai: *const i64,
+    av: *const f64,
+    alen: usize,
+    bi: *const i64,
+    bv: *const f64,
+    blen: usize,
+) -> usize {
+    let mut pa = 0usize;
+    let mut pb = 0usize;
+    let mut cnt = 0usize;
+    while pa < alen && pb < blen {
+        let ja = unsafe { *ai.add(pa) };
+        let jb = unsafe { *bi.add(pb) };
+        match ja.cmp(&jb) {
+            Ordering::Equal => {
+                let j = ja;
+                let mut sa = 0.0f64;
+                while pa < alen && unsafe { *ai.add(pa) } == j {
+                    sa += unsafe { *av.add(pa) };
+                    pa += 1;
+                }
+                let mut sb = 0.0f64;
+                while pb < blen && unsafe { *bi.add(pb) } == j {
+                    sb += unsafe { *bv.add(pb) };
+                    pb += 1;
+                }
+                let v = sa * sb;
+                if v != 0.0 {
+                    cnt += 1;
+                }
+            }
+            Ordering::Less => {
+                let j = ja;
+                while pa < alen && unsafe { *ai.add(pa) } == j {
+                    pa += 1;
+                }
+            }
+            Ordering::Greater => {
+                let j = jb;
+                while pb < blen && unsafe { *bi.add(pb) } == j {
+                    pb += 1;
+                }
+            }
+        }
+    }
+    cnt
+}
+
+#[inline]
+#[allow(clippy::too_many_arguments)]
+unsafe fn hadamard_row_fill(
+    ai: *const i64,
+    av: *const f64,
+    alen: usize,
+    bi: *const i64,
+    bv: *const f64,
+    blen: usize,
+    out_i: *mut i64,
+    out_v: *mut f64,
+) -> usize {
+    let mut pa = 0usize;
+    let mut pb = 0usize;
+    let mut dst = 0usize;
+    while pa < alen && pb < blen {
+        let ja = unsafe { *ai.add(pa) };
+        let jb = unsafe { *bi.add(pb) };
+        match ja.cmp(&jb) {
+            Ordering::Equal => {
+                let j = ja;
+                let mut sa = 0.0f64;
+                while pa < alen && unsafe { *ai.add(pa) } == j {
+                    sa += unsafe { *av.add(pa) };
+                    pa += 1;
+                }
+                let mut sb = 0.0f64;
+                while pb < blen && unsafe { *bi.add(pb) } == j {
+                    sb += unsafe { *bv.add(pb) };
+                    pb += 1;
+                }
+                let v = sa * sb;
+                if v != 0.0 {
+                    unsafe {
+                        std::ptr::write(out_i.add(dst), j);
+                        std::ptr::write(out_v.add(dst), v);
+                    }
+                    dst += 1;
+                }
+            }
+            Ordering::Less => {
+                let j = ja;
+                while pa < alen && unsafe { *ai.add(pa) } == j {
+                    pa += 1;
+                }
+            }
+            Ordering::Greater => {
+                let j = jb;
+                while pb < blen && unsafe { *bi.add(pb) } == j {
+                    pb += 1;
+                }
+            }
+        }
+    }
+    dst
+}
+
+#[inline]
+fn usize_to_i64(x: usize) -> i64 {
+    debug_assert!(i64::try_from(x).is_ok());
+    #[allow(clippy::cast_possible_wrap, clippy::cast_possible_truncation)]
+    {
+        x as i64
+    }
+}
+
+#[must_use]
+#[allow(clippy::float_cmp)]
+pub fn mul_scalar_f64(a: &Csr<f64, i64>, alpha: f64) -> Csr<f64, i64> {
+    // Fast paths
+    if alpha == 1.0 {
+        return a.clone();
+    }
+    let nrows = a.nrows;
+    let ncols = a.ncols;
+    if alpha == 0.0 {
+        // Structure unchanged; data all zeros
+        let data = vec![0.0f64; a.data.len()];
+        return Csr::from_parts_unchecked(nrows, ncols, a.indptr.clone(), a.indices.clone(), data);
+    }
+
+    let len = a.data.len();
+    // avoid parallel overhead for small problems
+    if len < SMALL_NNZ_SIMD {
+        let mut data = a.data.clone();
+        let aval = f64x4::splat(alpha);
+        let mut i = 0usize;
+        let limit4 = len & !3;
+        while i < limit4 {
+            unsafe {
+                let p = data.as_mut_ptr().add(i).cast::<[f64; 4]>();
+                let v = f64x4::new(core::ptr::read_unaligned(p.cast_const()));
+                let r = v * aval;
+                core::ptr::write_unaligned(p, r.to_array());
+            }
+            i += 4;
+        }
+        while i < len {
+            data[i] *= alpha;
+            i += 1;
+        }
+        return Csr::from_parts_unchecked(nrows, ncols, a.indptr.clone(), a.indices.clone(), data);
+    }
+
+    // Large case: parallelize over chunks
+    let mut data = a.data.clone();
+    let chunk_size = 4096;
+    let aval = f64x4::splat(alpha);
+    data.par_chunks_mut(chunk_size).for_each(|chunk| {
+        let mut k = 0usize;
+        let limit4 = chunk.len() & !3;
+        while k < limit4 {
+            unsafe {
+                let p = chunk.as_mut_ptr().add(k).cast::<[f64; 4]>();
+                let v = f64x4::new(core::ptr::read_unaligned(p.cast_const()));
+                let r = v * aval;
+                core::ptr::write_unaligned(p, r.to_array());
+            }
+            k += 4;
+        }
+        while k < chunk.len() {
+            chunk[k] *= alpha;
+            k += 1;
+        }
+    });
+    Csr::from_parts_unchecked(nrows, ncols, a.indptr.clone(), a.indices.clone(), data)
+}
+
+#[allow(clippy::float_cmp)]
+pub fn scale_inplace_f64(a: &mut Csr<f64, i64>, alpha: f64) {
+    if alpha == 1.0 {
+        return;
+    }
+    let len = a.data.len();
+    if alpha == 0.0 {
+        a.data.fill(0.0);
+        return;
+    }
+    if len < SMALL_NNZ_SIMD {
+        let aval = f64x4::splat(alpha);
+        let mut i = 0usize;
+        let limit4 = len & !3;
+        while i < limit4 {
+            unsafe {
+                let p = a.data.as_mut_ptr().add(i).cast::<[f64; 4]>();
+                let v = f64x4::new(core::ptr::read_unaligned(p.cast_const()));
+                let r = v * aval;
+                core::ptr::write_unaligned(p, r.to_array());
+            }
+            i += 4;
+        }
+        while i < len {
+            a.data[i] *= alpha;
+            i += 1;
+        }
+        return;
+    }
+    let chunk_size = 4096;
+    let aval = f64x4::splat(alpha);
+    a.data.par_chunks_mut(chunk_size).for_each(|chunk| {
+        let mut k = 0usize;
+        let limit4 = chunk.len() & !3;
+        while k < limit4 {
+            unsafe {
+                let p = chunk.as_mut_ptr().add(k).cast::<[f64; 4]>();
+                let v = f64x4::new(core::ptr::read_unaligned(p.cast_const()));
+                let r = v * aval;
+                core::ptr::write_unaligned(p, r.to_array());
+            }
+            k += 4;
+        }
+        while k < chunk.len() {
+            chunk[k] *= alpha;
+            k += 1;
+        }
+    });
+}
+
+#[must_use]
 pub fn add_csr_f64_i64(a: &Csr<f64, i64>, b: &Csr<f64, i64>) -> Csr<f64, i64> {
     assert_eq!(a.nrows, b.nrows);
     assert_eq!(a.ncols, b.ncols);
@@ -35,38 +455,31 @@ pub fn add_csr_f64_i64(a: &Csr<f64, i64>, b: &Csr<f64, i64>) -> Csr<f64, i64> {
     let counts: Vec<usize> = (0..nrows)
         .into_par_iter()
         .map(|i| {
-            let mut pa = a.indptr[i] as usize;
-            let ea = a.indptr[i + 1] as usize;
-            let mut pb = b.indptr[i] as usize;
-            let eb = b.indptr[i + 1] as usize;
-            let mut cnt = 0usize;
-            while pa < ea || pb < eb {
-                if pb >= eb || (pa < ea && a.indices[pa] <= b.indices[pb]) {
-                    let j = a.indices[pa];
-                    // accumulate duplicates in A
-                    let mut v = 0.0f64;
-                    while pa < ea && a.indices[pa] == j { v += a.data[pa]; pa += 1; }
-                    // accumulate matching indices in B as well
-                    if pb < eb && b.indices[pb] == j {
-                        while pb < eb && b.indices[pb] == j { v += b.data[pb]; pb += 1; }
-                    }
-                    if v != 0.0 { cnt += 1; }
-                } else {
-                    let j = b.indices[pb];
-                    // accumulate duplicates in B
-                    let mut v = 0.0f64;
-                    while pb < eb && b.indices[pb] == j { v += b.data[pb]; pb += 1; }
-                    if v != 0.0 { cnt += 1; }
-                }
+            let sa = i64_to_usize(a.indptr[i]);
+            let ea = i64_to_usize(a.indptr[i + 1]);
+            let sb = i64_to_usize(b.indptr[i]);
+            let eb = i64_to_usize(b.indptr[i + 1]);
+            let alen = ea - sa;
+            let blen = eb - sb;
+            unsafe {
+                add_row_count(
+                    a.indices.as_ptr().add(sa),
+                    a.data.as_ptr().add(sa),
+                    alen,
+                    b.indices.as_ptr().add(sb),
+                    b.data.as_ptr().add(sb),
+                    blen,
+                )
             }
-            cnt
         })
         .collect();
 
     // Prefix sum -> indptr
     let mut indptr = vec![0i64; nrows + 1];
-    for i in 0..nrows { indptr[i + 1] = indptr[i] + counts[i] as i64; }
-    let nnz = indptr[nrows] as usize;
+    for i in 0..nrows {
+        indptr[i + 1] = indptr[i] + usize_to_i64(counts[i]);
+    }
+    let nnz = i64_to_usize(indptr[nrows]);
     let mut indices = vec![0i64; nnz];
     let mut data = vec![0.0f64; nnz];
     let pi_addr = indices.as_mut_ptr() as usize;
@@ -75,42 +488,169 @@ pub fn add_csr_f64_i64(a: &Csr<f64, i64>, b: &Csr<f64, i64>) -> Csr<f64, i64> {
 
     // Pass 2: fill rows in parallel
     (0..nrows).into_par_iter().for_each(move |i| {
-        let mut pa = a.indptr[i] as usize;
-        let ea = a.indptr[i + 1] as usize;
-        let mut pb = b.indptr[i] as usize;
-        let eb = b.indptr[i + 1] as usize;
-        let mut dst = unsafe { *(indptr_addr as *const i64).add(i) } as usize;
+        let sa = i64_to_usize(a.indptr[i]);
+        let ea = i64_to_usize(a.indptr[i + 1]);
+        let sb = i64_to_usize(b.indptr[i]);
+        let eb = i64_to_usize(b.indptr[i + 1]);
+        let alen = ea - sa;
+        let blen = eb - sb;
+        let row_start = i64_to_usize(unsafe { *(indptr_addr as *const i64).add(i) });
         unsafe {
-            let pi = pi_addr as *mut i64;
-            let pv = pv_addr as *mut f64;
-            while pa < ea || pb < eb {
-                if pb >= eb || (pa < ea && a.indices[pa] <= b.indices[pb]) {
-                    let j = a.indices[pa];
-                    // accumulate duplicates in A
-                    let mut v = 0.0f64;
-                    while pa < ea && a.indices[pa] == j { v += a.data[pa]; pa += 1; }
-                    // accumulate matching indices in B as well
-                    if pb < eb && b.indices[pb] == j {
-                        while pb < eb && b.indices[pb] == j { v += b.data[pb]; pb += 1; }
-                    }
-                    if v != 0.0 {
-                        std::ptr::write(pi.add(dst), j);
-                        std::ptr::write(pv.add(dst), v);
-                        dst += 1;
-                    }
-                } else {
-                    let j = b.indices[pb];
-                    // accumulate duplicates in B
-                    let mut v = 0.0f64;
-                    while pb < eb && b.indices[pb] == j { v += b.data[pb]; pb += 1; }
-                    if v != 0.0 {
-                        std::ptr::write(pi.add(dst), j);
-                        std::ptr::write(pv.add(dst), v);
-                        dst += 1;
-                    }
-                }
-            }
+            let pi = (pi_addr as *mut i64).add(row_start);
+            let pv = (pv_addr as *mut f64).add(row_start);
+            let written = add_row_fill(
+                a.indices.as_ptr().add(sa),
+                a.data.as_ptr().add(sa),
+                alen,
+                b.indices.as_ptr().add(sb),
+                b.data.as_ptr().add(sb),
+                blen,
+                pi,
+                pv,
+            );
+            let expected = i64_to_usize(*(indptr_addr as *const i64).add(i + 1)) - row_start;
+            debug_assert_eq!(written, expected);
         }
     });
-    Csr { nrows, ncols: a.ncols, indptr, indices, data }
+    Csr::from_parts_unchecked(nrows, a.ncols, indptr, indices, data)
+}
+
+/// A - B for CSR matrices; coalesces duplicates within rows.
+#[must_use]
+pub fn sub_csr_f64_i64(a: &Csr<f64, i64>, b: &Csr<f64, i64>) -> Csr<f64, i64> {
+    assert_eq!(a.nrows, b.nrows);
+    assert_eq!(a.ncols, b.ncols);
+    let nrows = a.nrows;
+    // Pass 1: count output nnz per row in parallel
+    let counts: Vec<usize> = (0..nrows)
+        .into_par_iter()
+        .map(|i| {
+            let sa = i64_to_usize(a.indptr[i]);
+            let ea = i64_to_usize(a.indptr[i + 1]);
+            let sb = i64_to_usize(b.indptr[i]);
+            let eb = i64_to_usize(b.indptr[i + 1]);
+            let alen = ea - sa;
+            let blen = eb - sb;
+            unsafe {
+                sub_row_count(
+                    a.indices.as_ptr().add(sa),
+                    a.data.as_ptr().add(sa),
+                    alen,
+                    b.indices.as_ptr().add(sb),
+                    b.data.as_ptr().add(sb),
+                    blen,
+                )
+            }
+        })
+        .collect();
+
+    // Prefix sum -> indptr
+    let mut indptr = vec![0i64; nrows + 1];
+    for i in 0..nrows {
+        indptr[i + 1] = indptr[i] + usize_to_i64(counts[i]);
+    }
+    let nnz = i64_to_usize(indptr[nrows]);
+    let mut indices = vec![0i64; nnz];
+    let mut data = vec![0.0f64; nnz];
+    let pi_addr = indices.as_mut_ptr() as usize;
+    let pv_addr = data.as_mut_ptr() as usize;
+    let indptr_addr = indptr.as_ptr() as usize;
+
+    // Pass 2: fill rows in parallel
+    (0..nrows).into_par_iter().for_each(move |i| {
+        let sa = i64_to_usize(a.indptr[i]);
+        let ea = i64_to_usize(a.indptr[i + 1]);
+        let sb = i64_to_usize(b.indptr[i]);
+        let eb = i64_to_usize(b.indptr[i + 1]);
+        let alen = ea - sa;
+        let blen = eb - sb;
+        let row_start = i64_to_usize(unsafe { *(indptr_addr as *const i64).add(i) });
+        unsafe {
+            let pi = (pi_addr as *mut i64).add(row_start);
+            let pv = (pv_addr as *mut f64).add(row_start);
+            let written = sub_row_fill(
+                a.indices.as_ptr().add(sa),
+                a.data.as_ptr().add(sa),
+                alen,
+                b.indices.as_ptr().add(sb),
+                b.data.as_ptr().add(sb),
+                blen,
+                pi,
+                pv,
+            );
+            let expected = i64_to_usize(*(indptr_addr as *const i64).add(i + 1)) - row_start;
+            debug_assert_eq!(written, expected);
+        }
+    });
+    Csr::from_parts_unchecked(nrows, a.ncols, indptr, indices, data)
+}
+
+/// Hadamard elementwise product A .* B for CSR matrices; coalesces duplicates per row.
+#[must_use]
+pub fn hadamard_csr_f64_i64(a: &Csr<f64, i64>, b: &Csr<f64, i64>) -> Csr<f64, i64> {
+    assert_eq!(a.nrows, b.nrows);
+    assert_eq!(a.ncols, b.ncols);
+    let nrows = a.nrows;
+    // Pass 1: count intersection nnz per row
+    let counts: Vec<usize> = (0..nrows)
+        .into_par_iter()
+        .map(|i| {
+            let sa = i64_to_usize(a.indptr[i]);
+            let ea = i64_to_usize(a.indptr[i + 1]);
+            let sb = i64_to_usize(b.indptr[i]);
+            let eb = i64_to_usize(b.indptr[i + 1]);
+            let alen = ea - sa;
+            let blen = eb - sb;
+            unsafe {
+                hadamard_row_count(
+                    a.indices.as_ptr().add(sa),
+                    a.data.as_ptr().add(sa),
+                    alen,
+                    b.indices.as_ptr().add(sb),
+                    b.data.as_ptr().add(sb),
+                    blen,
+                )
+            }
+        })
+        .collect();
+
+    // Prefix sum -> indptr
+    let mut indptr = vec![0i64; nrows + 1];
+    for i in 0..nrows {
+        indptr[i + 1] = indptr[i] + usize_to_i64(counts[i]);
+    }
+    let nnz = i64_to_usize(indptr[nrows]);
+    let mut indices = vec![0i64; nnz];
+    let mut data = vec![0.0f64; nnz];
+    let pi_addr = indices.as_mut_ptr() as usize;
+    let pv_addr = data.as_mut_ptr() as usize;
+    let indptr_addr = indptr.as_ptr() as usize;
+
+    // Pass 2: fill rows in parallel
+    (0..nrows).into_par_iter().for_each(move |i| {
+        let sa = i64_to_usize(a.indptr[i]);
+        let ea = i64_to_usize(a.indptr[i + 1]);
+        let sb = i64_to_usize(b.indptr[i]);
+        let eb = i64_to_usize(b.indptr[i + 1]);
+        let alen = ea - sa;
+        let blen = eb - sb;
+        let row_start = i64_to_usize(unsafe { *(indptr_addr as *const i64).add(i) });
+        unsafe {
+            let pi = (pi_addr as *mut i64).add(row_start);
+            let pv = (pv_addr as *mut f64).add(row_start);
+            let written = hadamard_row_fill(
+                a.indices.as_ptr().add(sa),
+                a.data.as_ptr().add(sa),
+                alen,
+                b.indices.as_ptr().add(sb),
+                b.data.as_ptr().add(sb),
+                blen,
+                pi,
+                pv,
+            );
+            let expected = i64_to_usize(*(indptr_addr as *const i64).add(i + 1)) - row_start;
+            debug_assert_eq!(written, expected);
+        }
+    });
+    Csr::from_parts_unchecked(nrows, a.ncols, indptr, indices, data)
 }

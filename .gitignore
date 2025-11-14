@@ -41,4 +41,5 @@ docs/_build/
 .DS_Store
 Thumbs.db
 *.whl
-*.log
+*.logPLAN.md
+plan.md
