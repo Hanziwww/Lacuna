@@ -2,10 +2,7 @@
   <img src="docs/logo.png" alt="Lacuna logo" width="300">
 
 </p>
-
-<h1 align="center">Lacuna</h1>
-
-<p align="center">High-performance sparse arrays/matrices for Python with a pure Rust core.</p>
+<p align="center">High-performance Sparse Matrices for Python.</p>
 
 <p align="center">
   <a href="https://www.rust-lang.org/"><img src="https://img.shields.io/badge/Rust-1.90%2B-93450a?logo=rust&logoColor=white" alt="Rust 1.90+" /></a>
@@ -17,7 +14,7 @@
   <img src="https://img.shields.io/badge/License-Apache%202.0-purple" alt="License: Apache 2.0" />
 </p>
 
- ⚠ Status: Work in progress. APIs and performance characteristics may change without notice.
+ > ⚠ Status: Work in progress. APIs and performance characteristics may change without notice.
 
 ## Quick start (development install)
 
@@ -96,10 +93,13 @@ Start-Process docs\_build\html\index.html
 
 ## Tiny Benchmark
 
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/a3683b6d-22e3-4193-bd18-a7c449b96fac"
+       height="300" />
+  <img src="https://github.com/user-attachments/assets/46117403-dd91-4131-ae3a-8cdd58b75939"
+       height="300" />
+</p>
+
 ## Contributing
 
 We welcome contributors! If you're interested in sparse matrix, feel free to open an issue or pull request. The project is under active development, so expect rapid iteration and occasional breaking changes.
-
-## License
-
-Apache-2.0
