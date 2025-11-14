@@ -96,9 +96,9 @@ Start-Process docs\_build\html\index.html
 
 <p align="center">
   <img src="https://github.com/user-attachments/assets/a3683b6d-22e3-4193-bd18-a7c449b96fac"
-       height="300" />
+       height="200" />
   <img src="https://github.com/user-attachments/assets/46117403-dd91-4131-ae3a-8cdd58b75939"
-       height="300" />
+       height="200" />
 </p>
 
 ## Contributing
