@@ -14,7 +14,7 @@
   <img src="https://img.shields.io/badge/License-Apache%202.0-purple" alt="License: Apache 2.0" />
 </p>
 
- > ⚠ Status: Work in progress. APIs and performance characteristics may change without notice.
+ > ⚠ Status: Work in progress. APIs and performance characteristics may change without notice. **Contact me if you'd like to join the development**!
 
 ## Quick start (development install)
 
