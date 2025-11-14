@@ -24,11 +24,12 @@ Requirements:
 - Rust toolchain (stable)
 - pip
 
-Install with maturin (Windows PowerShell):
+Install with maturin:
 
 ```powershell
 python -m venv .venv
-.\.venv\Scripts\Activate.ps1
+# then activate venv
+
 python -m pip install -U maturin
 maturin develop -m crates/lacuna-py/Cargo.toml --release
 ```
