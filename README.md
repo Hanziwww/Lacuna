@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/logo.png" alt="Lacuna logo" width="120">
+  <img src="docs/logo.png" alt="Lacuna logo" width="300">
 
 </p>
 
@@ -95,8 +95,6 @@ Start-Process docs\_build\html\index.html
 ```
 
 ## Tiny Benchmark
-
-
 
 ## Contributing
 
