@@ -42,6 +42,8 @@ python -c "import lacuna as la; print('threads:', la.get_num_threads())"
 
 ## Basic usage
 
+> Version 0.1 only supports CSR. COO, CSC, and other formats are currently under testing.
+
 ```python
 import numpy as np
 from lacuna.sparse.csr import CSR
