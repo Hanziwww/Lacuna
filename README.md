@@ -42,7 +42,7 @@ python -c "import lacuna as la; print('threads:', la.get_num_threads())"
 
 ## Basic usage
 
-> Version 0.1 only supports CSR. COO, CSC, and other formats are currently under testing.
+> Now support CSR, CSC, COO, and CooND.
 
 ```python
 import numpy as np
