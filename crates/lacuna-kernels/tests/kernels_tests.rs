@@ -1,4 +1,4 @@
-use lacuna_core::Csr;
+use lacuna_core::{Coo, Csc, Csr};
 use lacuna_kernels::*;
 
 fn simple_csr() -> Csr<f64, i64> {
@@ -9,6 +9,56 @@ fn simple_csr() -> Csr<f64, i64> {
     let indices = vec![0i64, 2, 1];
     let data = vec![1.0f64, 2.0, 3.0];
     Csr::from_parts(nrows, ncols, indptr, indices, data, true).unwrap()
+}
+
+#[test]
+fn test_transpose_csc_kernel_basic() {
+    // A = [[1,0,2],[0,3,0]] in CSC
+    let nrows = 2usize;
+    let ncols = 3usize;
+    let indptr = vec![0i64, 1, 2, 3];
+    let indices = vec![0i64, 1, 0];
+    let data = vec![1.0f64, 3.0, 2.0];
+    let a = Csc::from_parts(nrows, ncols, indptr, indices, data, true).unwrap();
+    let t = transpose_csc_f64_i64(&a);
+    assert_eq!(t.nrows, 3);
+    assert_eq!(t.ncols, 2);
+    assert_eq!(t.indptr, vec![0i64, 2, 3]);
+    assert_eq!(t.indices, vec![0i64, 2, 1]);
+    assert!(approx_eq(t.data[0], 1.0) && approx_eq(t.data[1], 2.0) && approx_eq(t.data[2], 3.0));
+}
+
+#[test]
+fn test_transpose_csc_kernel_empty() {
+    let nrows = 2usize;
+    let ncols = 3usize;
+    let indptr = vec![0i64, 0, 0, 0];
+    let indices: Vec<i64> = vec![];
+    let data: Vec<f64> = vec![];
+    let a = Csc::from_parts(nrows, ncols, indptr, indices, data, true).unwrap();
+    let t = transpose_csc_f64_i64(&a);
+    assert_eq!(t.nrows, 3);
+    assert_eq!(t.ncols, 2);
+    assert_eq!(t.indptr, vec![0i64, 0, 0]);
+    assert!(t.indices.is_empty() && t.data.is_empty());
+}
+
+#[test]
+fn test_transpose_coo_kernel_basic() {
+    // A = [[1,0,2],[0,3,0]] in COO
+    let nrows = 2usize;
+    let ncols = 3usize;
+    let row = vec![0i64, 1, 1];
+    let col = vec![0i64, 0, 2];
+    let data = vec![1.0f64, 2.0, 3.0];
+    let a = Coo::from_parts(nrows, ncols, row, col, data, true).unwrap();
+    let t = transpose_coo_f64_i64(&a);
+    assert_eq!(t.nrows, 3);
+    assert_eq!(t.ncols, 2);
+    // swap row/col
+    assert_eq!(t.row, vec![0i64, 0, 2]);
+    assert_eq!(t.col, vec![0i64, 1, 1]);
+    assert!(approx_eq(t.data[0], 1.0) && approx_eq(t.data[1], 2.0) && approx_eq(t.data[2], 3.0));
 }
 
 fn approx_eq(a: f64, b: f64) -> bool {

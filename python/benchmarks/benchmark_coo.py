@@ -7,10 +7,6 @@ from typing import Any, Callable, Dict, List, Optional, Tuple
 import numpy as np
 import scipy.sparse as sp
 
-# Ensure we can import lacuna from source tree
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-
-
 # ---------- Builders ----------
 
 
@@ -253,10 +249,7 @@ def main():
         "--ops",
         type=str,
         default="all",
-        help=(
-            "Comma-separated ops: "
-            "spmv, spmm, sum, row_sums, col_sums, prune, eliminate, mul"
-        ),
+        help=("Comma-separated ops: spmv, spmm, sum, row_sums, col_sums, prune, eliminate, mul"),
     )
     p.add_argument("--alpha", type=float, default=2.0, help="Scalar for mul")
     p.add_argument("--eps", type=float, default=1e-9, help="Threshold for prune")

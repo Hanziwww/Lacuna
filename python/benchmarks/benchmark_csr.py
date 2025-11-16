@@ -7,10 +7,6 @@ from typing import Any, Callable, Dict, List, Optional, Tuple
 import numpy as np
 import scipy.sparse as sp
 
-# Ensure we can import lacuna from source tree
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-
-
 # ---------- Builders ----------
 
 

@@ -108,4 +108,18 @@ impl UsizeF64Map {
             }
         }
     }
+
+    #[inline]
+    #[must_use]
+    pub fn pairs(&self) -> Vec<(usize, f64)> {
+        let len = self.keys.len();
+        let mut out = Vec::with_capacity(self.len);
+        for i in 0..len {
+            let k = self.keys[i];
+            if k != usize::MAX {
+                out.push((k, self.vals[i]));
+            }
+        }
+        out
+    }
 }

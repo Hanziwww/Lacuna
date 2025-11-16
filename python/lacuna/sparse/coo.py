@@ -1,4 +1,5 @@
 import numpy as np
+
 from .base import SparseArray
 
 try:
@@ -188,3 +189,17 @@ class COO(SparseArray):
         for k in range(self.data.size):
             out[r[k], c[k]] += self.data[k]
         return out
+
+    @property
+    def T(self):
+        if _core is None:
+            raise RuntimeError("native core is not available")
+        h = getattr(self, "_handle", None)
+        if h is not None:
+            rr, cc, vv, nr, nc = h.transpose()
+            return COO(rr, cc, vv, (nr, nc), check=False)
+        # fallback to from_parts path
+        rr, cc, vv, nr, nc = _core.transpose_coo_from_parts(
+            self.shape[0], self.shape[1], self.row, self.col, self.data, False
+        )
+        return COO(rr, cc, vv, (nr, nc), check=False)

@@ -6,14 +6,151 @@
 use crate::util::{
     SMALL_DIM_LIMIT, SMALL_NNZ_LIMIT, STRIPE, StripeAccs, UsizeF64Map, i64_to_usize,
 };
-use lacuna_core::{Coo, Csc, Csr};
+use lacuna_core::{Coo, Csc, Csr, CooNd};
 use rayon::prelude::*;
 use std::cell::RefCell;
 use thread_local::ThreadLocal;
 use wide::f64x4;
 
+#[inline]
+fn product_checked(dims: &[usize]) -> usize {
+    let mut acc: usize = 1;
+    for &x in dims {
+        acc = acc.checked_mul(x).expect("shape product overflow");
+    }
+    acc
+}
+
+#[must_use]
+pub fn mean_coond_f64(a: &CooNd<f64, i64>) -> f64 {
+    if a.shape.is_empty() {
+        return 0.0; // conventionally empty shape -> 0 length; avoid div by zero
+    }
+    let denom = product_checked(&a.shape) as f64;
+    if denom == 0.0 {
+        return 0.0;
+    }
+    sum_coond_f64(a) / denom
+}
+
+#[must_use]
+pub fn reduce_mean_axes_coond_f64_i64(a: &CooNd<f64, i64>, axes: &[usize]) -> CooNd<f64, i64> {
+    let reduced = reduce_sum_axes_coond_f64_i64(a, axes);
+    let mut reduce = vec![false; a.shape.len()];
+    for &ax in axes {
+        reduce[ax] = true;
+    }
+    let mut denom_us: usize = 1;
+    for (d, &sz) in a.shape.iter().enumerate() {
+        if reduce[d] {
+            denom_us = denom_us.checked_mul(sz).expect("shape product overflow");
+        }
+    }
+    if denom_us == 1 {
+        return reduced;
+    }
+    let factor = 1.0f64 / (denom_us as f64);
+    crate::arith::mul_scalar_coond_f64(&reduced, factor)
+}
+
 #[must_use]
 pub fn sum_csc_f64(a: &Csc<f64, i64>) -> f64 {
+    a.data
+        .par_chunks(4096)
+        .map(|chunk| {
+            let mut accv = f64x4::from([0.0, 0.0, 0.0, 0.0]);
+            let mut i = 0usize;
+            let limit4 = chunk.len() & !3;
+            while i < limit4 {
+                let v = unsafe {
+                    let p = chunk.as_ptr().add(i).cast::<[f64; 4]>();
+                    f64x4::new(core::ptr::read_unaligned(p))
+                };
+                accv += v;
+                i += 4;
+            }
+            let arr = accv.to_array();
+            let mut acc = arr[0] + arr[1] + arr[2] + arr[3];
+            while i < chunk.len() {
+                acc += chunk[i];
+                i += 1;
+            }
+            acc
+        })
+        .sum()
+}
+
+#[must_use]
+pub fn reduce_sum_axes_coond_f64_i64(a: &CooNd<f64, i64>, axes: &[usize]) -> CooNd<f64, i64> {
+    let ndim = a.shape.len();
+    assert!(!axes.is_empty(), "axes must be non-empty");
+    let mut reduce = vec![false; ndim];
+    for &ax in axes {
+        assert!(ax < ndim, "axis out of bounds");
+        assert!(!reduce[ax], "duplicate axis in axes");
+        reduce[ax] = true;
+    }
+    let remain_axes: Vec<usize> = (0..ndim).filter(|&d| !reduce[d]).collect();
+    assert!(
+        !remain_axes.is_empty(),
+        "reducing over all axes would yield a scalar; use sum_coond_f64"
+    );
+
+    let remain_ndim = remain_axes.len();
+    let remain_shape: Vec<usize> = remain_axes.iter().map(|&d| a.shape[d]).collect();
+
+    let mut strides = vec![0usize; remain_ndim];
+    strides[remain_ndim - 1] = 1;
+    for i in (0..remain_ndim - 1).rev() {
+        let s = strides[i + 1]
+            .checked_mul(remain_shape[i + 1])
+            .expect("shape product overflow");
+        strides[i] = s;
+    }
+
+    let nnz = a.data.len();
+    if nnz == 0 {
+        return CooNd::from_parts_unchecked(remain_shape, Vec::new(), Vec::new());
+    }
+
+    let mut acc: UsizeF64Map = UsizeF64Map::with_capacity(nnz);
+    let ndim_us = ndim; // alias for indexing
+    for k in 0..nnz {
+        let mut lin: usize = 0;
+        let base = k * ndim_us;
+        for (m, &d) in remain_axes.iter().enumerate() {
+            let idx = i64_to_usize(a.indices[base + d]);
+            let s = strides[m];
+            lin = lin
+                .checked_add(idx.checked_mul(s).expect("linear index overflow"))
+                .expect("linear index overflow");
+        }
+        acc.insert_add(lin, a.data[k]);
+    }
+
+    let mut pairs = acc.pairs();
+    pairs.sort_unstable_by_key(|(k, _)| *k);
+    let out_nnz = pairs.len();
+    let mut out_data = Vec::with_capacity(out_nnz);
+    let mut out_indices = vec![0i64; out_nnz * remain_ndim];
+
+    for (pos, (lin, sum)) in pairs.into_iter().enumerate() {
+        let mut rem = lin;
+        let base = pos * remain_ndim;
+        for m in 0..remain_ndim {
+            let s = strides[m];
+            let idx = rem / s;
+            rem -= idx * s;
+            out_indices[base + m] = idx as i64;
+        }
+        out_data.push(sum);
+    }
+
+    CooNd::from_parts_unchecked(remain_shape, out_indices, out_data)
+}
+
+#[must_use]
+pub fn sum_coond_f64(a: &CooNd<f64, i64>) -> f64 {
     a.data
         .par_chunks(4096)
         .map(|chunk| {

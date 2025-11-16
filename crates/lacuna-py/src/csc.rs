@@ -6,7 +6,7 @@ use lacuna_core::Csc;
 use lacuna_kernels::{
     add_csc_f64_i64, col_sums_csc_f64, eliminate_zeros_csc, hadamard_csc_f64_i64,
     mul_scalar_csc_f64, prune_eps_csc, row_sums_csc_f64, spmm_csc_f64_i64, spmv_csc_f64_i64,
-    sub_csc_f64_i64, sum_csc_f64,
+    sub_csc_f64_i64, sum_csc_f64, transpose_csc_f64_i64,
 };
 
 #[pyclass]
@@ -91,6 +91,26 @@ impl Csc64 {
     fn col_sums<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyArray1<f64>>> {
         let out = py.detach(|| col_sums_csc_f64(&self.inner));
         Ok(PyArray1::from_vec(py, out))
+    }
+
+    fn transpose<'py>(
+        &self,
+        py: Python<'py>,
+    ) -> PyResult<(
+        Bound<'py, PyArray1<i64>>,
+        Bound<'py, PyArray1<i64>>,
+        Bound<'py, PyArray1<f64>>,
+        usize,
+        usize,
+    )> {
+        let t = py.detach(|| transpose_csc_f64_i64(&self.inner));
+        Ok((
+            PyArray1::from_vec(py, t.indptr),
+            PyArray1::from_vec(py, t.indices),
+            PyArray1::from_vec(py, t.data),
+            t.nrows,
+            t.ncols,
+        ))
     }
 
     fn prune<'py>(

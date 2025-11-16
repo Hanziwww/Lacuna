@@ -43,10 +43,16 @@ Project-wide checklist derived from PLAN.md. Items are grouped by milestones; al
 
   - [X] CSR default: values f64, indices i64; plan for f32/i32 as feature flags
   - [ ] ND baseline: COO-ND representation and invariants (v0.2)
+    - [X] COO-ND storage and invariants
+    - [X] Axis reductions: sum over axes
+    - [X] Axis permutation
+    - [X] ND→2D conversions: mode/axes unfold to CSR/CSC
+    - [X] Broadcasting elementwise ops (Hadamard)
+    - [X] mean and reshape
   - [ ] Future CSF for ND advanced ops (v0.4+)
 - **Python API**
 
-  - [X] `lacun.sparse` classes: SparseArray/SparseMatrix, CSR/CSC/COO
+  - [X] `lacuna.sparse` classes: SparseArray/SparseMatrix, CSR/CSC/COO/COOND
   - [ ] Construction and conversion APIs; SciPy/NumPy bridges
   - [X] Ops surface: matmul, add, multiply, transpose, sum; slicing semantics
 - **Rust Design**
@@ -80,6 +86,10 @@ Project-wide checklist derived from PLAN.md. Items are grouped by milestones; al
     - [X] Centralize reusable kernel utilities in `util.rs` (constants, helpers, `UsizeF64Map`)
     - [X] Replace HashMap-based sparse accumulators with `UsizeF64Map` in `reduce.rs` and `spmv.rs`
     - [X] Improve reduction paths: parallel small-dimension branches; SIMD stripe merge for column sums
+  - ND COO
+    - [X] Sum / Permute axes / Reduce sum over axes (COO-ND kernels)
+    - [X] SpMV/SpMM along mode axis
+    - [X] ND→2D conversions (mode/axes unfold) in `convert.rs`
 - **crates/lacuna-py** (PyO3 bindings)
 
   - SpMV / SpMM
@@ -90,6 +100,9 @@ Project-wide checklist derived from PLAN.md. Items are grouped by milestones; al
     - [X] Tests done (indirectly covered via Python tests)
   - Bindings structure
     - [X] Split monolithic `src/lib.rs` into modules: `csr.rs`, `csc.rs`, `coo.rs`, `functions.rs`; keep `lib.rs` as aggregator (no Python API changes)
+  - ND bindings
+    - [X] Export ND wrappers: `coond_sum_from_parts`, `coond_mean_from_parts`, `coond_reduce_sum_axes_from_parts`, `coond_reduce_mean_axes_from_parts`, `coond_permute_axes_from_parts`, `coond_reshape_from_parts`, `coond_hadamard_broadcast_from_parts`, `coond_mode_to_{csr,csc}_from_parts`, `coond_axes_to_{csr,csc}_from_parts`
+    - [X] Registered in `lib.rs`
 - **python/lacuna** (High-level Python API: CSR facade)
 
   - SpMV
@@ -122,12 +135,17 @@ Project-wide checklist derived from PLAN.md. Items are grouped by milestones; al
     - [X] Tests done (`python/tests/test_ops.py`/`test_more_ops.py`)
     - [X] Benchmarks done
     - [X] Docs done
+ - **python/lacuna** (High-level Python API: ND COO facade)
+  
+  - COOND
+    - [X] Feature done (`sum`, `mean`, `reduce_sum_axes`, `reduce_mean_axes`, `permute_axes`, `reshape`, `hadamard_broadcast`, `mode_unfold_to_{csr,csc}`, `axes_unfold_to_{csr,csc}`)
+    - [X] Tests done (`python/tests/test_nd.py`)
 - **Planned (per PLAN.md milestones)**
 
   - [X] Arithmetic: subtraction (A - B)
   - [X] Arithmetic: Hadamard elementwise multiply `A.multiply(B)`
   - [X] Format conversions: CSR <-> CSC, CSR <-> COO
-  - [ ] ND baseline (COO-ND): elementwise ops with broadcasting; `sum/mean` over axes; `transpose/permute`; `reshape`
+  - [X] ND baseline (COO-ND): elementwise ops with broadcasting (Hadamard), `sum/mean` over axes, `transpose/permute`, `reshape`
   - [ ] Reordering: CSR reorder (cache locality)
   - [ ] Cache-aware/blocked SpMM improvements
   - [ ] Block formats: BSR kernels
@@ -143,6 +161,7 @@ Project-wide checklist derived from PLAN.md. Items are grouped by milestones; al
   - [X] Rust unit/property tests
   - [X] Python pytest parity tests vs NumPy/SciPy; randomized matrices
   - [X] pytest-benchmark scenarios; SuiteSparse/synthetic datasets
+  - [X] Benchmarks import `lacuna` only from installed environment (no local path injection)
 - **Documentation**
 
   - [ ] User guides (MyST), API docs (autodoc/napoleon), and design notes

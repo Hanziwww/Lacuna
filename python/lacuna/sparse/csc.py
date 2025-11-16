@@ -1,4 +1,5 @@
 import numpy as np
+
 from .base import SparseMatrix
 
 try:
@@ -39,11 +40,11 @@ class CSC(SparseMatrix):
     Notes
     -----
     Backed by Rust kernels through ``lacuna._core.Csc64``; operations release the GIL.
-    
+
     Examples
     --------
     Construct a small CSC and run basic ops::
-    
+
         >>> import numpy as np
         >>> from lacuna.sparse import CSC
         >>> indptr = np.array([0, 1, 2, 3])
@@ -222,3 +223,17 @@ class CSC(SparseMatrix):
             if s < e:
                 out[self.indices[s:e], j] = self.data[s:e]
         return out
+
+    @property
+    def T(self):
+        if _core is None:
+            raise RuntimeError("native core is not available")
+        h = getattr(self, "_handle", None)
+        if h is not None:
+            ti, tj, tv, tr, tc = h.transpose()
+            return CSC(ti, tj, tv, (tr, tc), check=False)
+        # fallback to from_parts path
+        ti, tj, tv, tr, tc = _core.transpose_csc_from_parts(
+            self.shape[0], self.shape[1], self.indptr, self.indices, self.data, False
+        )
+        return CSC(ti, tj, tv, (tr, tc), check=False)

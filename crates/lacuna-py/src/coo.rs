@@ -5,7 +5,7 @@ use pyo3::prelude::*;
 use lacuna_core::Coo;
 use lacuna_kernels::{
     col_sums_coo_f64, eliminate_zeros_coo, mul_scalar_coo_f64, prune_eps_coo, row_sums_coo_f64,
-    spmm_coo_f64_i64, spmv_coo_f64_i64, sum_coo_f64,
+    spmm_coo_f64_i64, spmv_coo_f64_i64, sum_coo_f64, transpose_coo_f64_i64,
 };
 
 #[pyclass]
@@ -94,6 +94,26 @@ impl Coo64 {
     fn col_sums<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyArray1<f64>>> {
         let out = py.detach(|| col_sums_coo_f64(&self.inner));
         Ok(PyArray1::from_vec(py, out))
+    }
+
+    fn transpose<'py>(
+        &self,
+        py: Python<'py>,
+    ) -> PyResult<(
+        Bound<'py, PyArray1<i64>>, // row
+        Bound<'py, PyArray1<i64>>, // col
+        Bound<'py, PyArray1<f64>>, // data
+        usize,                     // nrows
+        usize,                     // ncols
+    )> {
+        let t = py.detach(|| transpose_coo_f64_i64(&self.inner));
+        Ok((
+            PyArray1::from_vec(py, t.row),
+            PyArray1::from_vec(py, t.col),
+            PyArray1::from_vec(py, t.data),
+            t.nrows,
+            t.ncols,
+        ))
     }
 
     fn prune<'py>(

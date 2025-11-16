@@ -15,6 +15,7 @@
 pub mod coo;
 pub mod csc;
 pub mod csr;
+pub mod nd;
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 pub type Csr<T, I> = csr::Csr<T, I>;

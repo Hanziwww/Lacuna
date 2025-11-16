@@ -11,9 +11,11 @@
     reason = "Math kernels conventionally use i/j/k/p for indices"
 )]
 use core::cmp::Ordering;
-use lacuna_core::{Coo, Csc, Csr};
+use lacuna_core::{Coo, Csc, Csr, CooNd};
 use rayon::prelude::*;
+use std::collections::HashMap;
 use wide::f64x4;
+use crate::util::UsizeF64Map;
 
 const SMALL_NNZ_SIMD: usize = 16 * 1024;
 
@@ -24,6 +26,481 @@ fn i64_to_usize(x: i64) -> usize {
     {
         x as usize
     }
+}
+
+#[inline]
+fn build_strides_row_major(dims: &[usize]) -> Vec<usize> {
+    if dims.is_empty() {
+        return Vec::new();
+    }
+    let n = dims.len();
+    let mut strides = vec![0usize; n];
+    strides[n - 1] = 1;
+    for i in (0..n - 1).rev() {
+        strides[i] = strides[i + 1]
+            .checked_mul(dims[i + 1])
+            .expect("shape product overflow");
+    }
+    strides
+}
+
+#[must_use]
+pub fn hadamard_broadcast_coond_f64_i64(
+    a: &CooNd<f64, i64>,
+    b: &CooNd<f64, i64>,
+) -> CooNd<f64, i64> {
+    let ad = a.shape.len();
+    let bd = b.shape.len();
+    let d = ad.max(bd);
+    // Pad shapes (left) to same ndim
+    let mut ash = vec![1usize; d];
+    let mut bsh = vec![1usize; d];
+    for i in 0..ad {
+        ash[d - ad + i] = a.shape[i];
+    }
+    for i in 0..bd {
+        bsh[d - bd + i] = b.shape[i];
+    }
+    // Validate broadcasting and compute out shape
+    let mut out_shape = vec![0usize; d];
+    for i in 0..d {
+        let ai = ash[i];
+        let bi = bsh[i];
+        if ai != bi && ai != 1 && bi != 1 {
+            panic!("shape mismatch: cannot broadcast along dim {i}: {ai} vs {bi}");
+        }
+        out_shape[i] = ai.max(bi);
+    }
+    if a.data.is_empty() || b.data.is_empty() {
+        return CooNd::from_parts_unchecked(out_shape, Vec::new(), Vec::new());
+    }
+
+    // Masks
+    let mut inter_mask = vec![false; d];
+    let mut a_free = vec![false; d];
+    let mut b_free = vec![false; d];
+    for i in 0..d {
+        inter_mask[i] = ash[i] != 1 && bsh[i] != 1;
+        a_free[i] = ash[i] == 1 && bsh[i] != 1;
+        b_free[i] = bsh[i] == 1 && ash[i] != 1;
+    }
+
+    // Strides for output linearization
+    let out_strides = build_strides_row_major(&out_shape);
+
+    // Strides for intersection-key linearization (only dims where both >1)
+    let mut inter_dims: Vec<usize> = Vec::new();
+    for i in 0..d {
+        if inter_mask[i] {
+            inter_dims.push(i);
+        }
+    }
+    let inter_strides: Vec<usize> = {
+        let mut local = vec![0usize; d];
+        if !inter_dims.is_empty() {
+            let mut s = 1usize;
+            for &idx in inter_dims.iter().rev() {
+                local[idx] = s;
+                s = s.checked_mul(out_shape[idx]).expect("shape product overflow");
+            }
+        }
+        local
+    };
+
+    // Normalize indices to d dims for a and b
+    let nnz_a = a.data.len();
+    let nnz_b = b.data.len();
+    let mut a_norm = vec![0i64; nnz_a * d];
+    let mut b_norm = vec![0i64; nnz_b * d];
+    // A
+    if nnz_a > 0 {
+        let aoff = d - ad;
+        let a_ptr = a_norm.as_mut_ptr() as usize;
+        (0..nnz_a).into_par_iter().for_each(|k| {
+            let base_a = k * ad;
+            let base_n = k * d;
+            let p = a_ptr as *mut i64;
+            for i in 0..d {
+                let val = if i >= aoff {
+                    a.indices[base_a + (i - aoff)]
+                } else {
+                    0
+                };
+                unsafe { std::ptr::write(p.add(base_n + i), val); }
+            }
+        });
+    }
+    // B
+    if nnz_b > 0 {
+        let boff = d - bd;
+        let b_ptr = b_norm.as_mut_ptr() as usize;
+        (0..nnz_b).into_par_iter().for_each(|k| {
+            let base_b = k * bd;
+            let base_n = k * d;
+            let p = b_ptr as *mut i64;
+            for i in 0..d {
+                let val = if i >= boff {
+                    b.indices[base_b + (i - boff)]
+                } else {
+                    0
+                };
+                unsafe { std::ptr::write(p.add(base_n + i), val); }
+            }
+        });
+    }
+
+    // Group by intersection key
+    let mut map_a: HashMap<usize, Vec<usize>> = HashMap::new();
+    for k in 0..nnz_a {
+        let base = k * d;
+        let mut key: usize = 0;
+        for i in 0..d {
+            if inter_mask[i] {
+                let idx = i64_to_usize(unsafe { *a_norm.get_unchecked(base + i) });
+                key = key
+                    .checked_add(idx.checked_mul(inter_strides[i]).expect("key overflow"))
+                    .expect("key overflow");
+            }
+        }
+        map_a.entry(key).or_default().push(k);
+    }
+    let mut map_b: HashMap<usize, Vec<usize>> = HashMap::new();
+    for k in 0..nnz_b {
+        let base = k * d;
+        let mut key: usize = 0;
+        for i in 0..d {
+            if inter_mask[i] {
+                let idx = i64_to_usize(unsafe { *b_norm.get_unchecked(base + i) });
+                key = key
+                    .checked_add(idx.checked_mul(inter_strides[i]).expect("key overflow"))
+                    .expect("key overflow");
+            }
+        }
+        map_b.entry(key).or_default().push(k);
+    }
+
+    let mut keys: Vec<usize> = Vec::new();
+    keys.reserve(map_a.len().min(map_b.len()));
+    for (&k, _) in &map_a {
+        if map_b.contains_key(&k) {
+            keys.push(k);
+        }
+    }
+
+    // Parallel accumulate products into per-chunk accumulators
+    let chunk = 1.max(keys.len() / (rayon::current_num_threads().max(1) * 4));
+    let parts: Vec<Vec<(usize, f64)>> = (0..keys.len().div_ceil(chunk))
+        .into_par_iter()
+        .map(|t| {
+            let start = t * chunk;
+            let end = (start + chunk).min(keys.len());
+            let mut acc = UsizeF64Map::with_capacity(1024);
+            for idx in start..end {
+                let key = keys[idx];
+                let va = map_a.get(&key).unwrap();
+                let vb = map_b.get(&key).unwrap();
+                for &ka in va {
+                    let ba = ka * d;
+                    let av = a.data[ka];
+                    for &kb in vb {
+                        let bb = kb * d;
+                        let bv = b.data[kb];
+                        // Compose output linear index
+                        let mut lin: usize = 0;
+                        for i in 0..d {
+                            let ia = unsafe { *a_norm.get_unchecked(ba + i) } as usize;
+                            let ib = unsafe { *b_norm.get_unchecked(bb + i) } as usize;
+                            let idx = if ash[i] == 1 { ib } else if bsh[i] == 1 { ia } else { ia };
+                            lin = lin
+                                .checked_add(idx.checked_mul(out_strides[i]).expect("lin overflow"))
+                                .expect("lin overflow");
+                        }
+                        acc.insert_add(lin, av * bv);
+                    }
+                }
+            }
+            acc.pairs()
+        })
+        .collect();
+
+    // Merge parts and coalesce duplicates
+    let mut global = UsizeF64Map::with_capacity(parts.iter().map(|p| p.len()).sum());
+    for p in parts {
+        for (k, v) in p {
+            global.insert_add(k, v);
+        }
+    }
+    let mut pairs = global.pairs();
+    pairs.sort_unstable_by_key(|(k, _)| *k);
+
+    let out_nnz = pairs.len();
+    let mut out_indices = vec![0i64; out_nnz * d];
+    let mut out_data = Vec::with_capacity(out_nnz);
+    for (pos, (mut lin, v)) in pairs.into_iter().enumerate() {
+        let base = pos * d;
+        for i in 0..d {
+            let s = out_strides[i];
+            let idx = lin / s;
+            lin -= idx * s;
+            out_indices[base + i] = idx as i64;
+        }
+        out_data.push(v);
+    }
+    CooNd::from_parts_unchecked(out_shape, out_indices, out_data)
+}
+
+#[must_use]
+#[allow(clippy::float_cmp)]
+pub fn mul_scalar_coond_f64(a: &CooNd<f64, i64>, alpha: f64) -> CooNd<f64, i64> {
+    if alpha == 1.0 {
+        return a.clone();
+    }
+    if alpha == 0.0 {
+        let data = vec![0.0f64; a.data.len()];
+        return CooNd::from_parts_unchecked(a.shape.clone(), a.indices.clone(), data);
+    }
+    let mut data = a.data.clone();
+    let len = data.len();
+    if len < 16 * 1024 {
+        let aval = f64x4::splat(alpha);
+        let mut i = 0usize;
+        let limit4 = len & !3;
+        while i < limit4 {
+            unsafe {
+                let p = data.as_mut_ptr().add(i).cast::<[f64; 4]>();
+                let v = f64x4::new(core::ptr::read_unaligned(p.cast_const()));
+                let r = v * aval;
+                core::ptr::write_unaligned(p, r.to_array());
+            }
+            i += 4;
+        }
+        while i < len {
+            data[i] *= alpha;
+            i += 1;
+        }
+        return CooNd::from_parts_unchecked(a.shape.clone(), a.indices.clone(), data);
+    }
+    let chunk_size = 4096;
+    let aval = f64x4::splat(alpha);
+    data.par_chunks_mut(chunk_size).for_each(|chunk| {
+        let mut k = 0usize;
+        let limit4 = chunk.len() & !3;
+        while k < limit4 {
+            unsafe {
+                let p = chunk.as_mut_ptr().add(k).cast::<[f64; 4]>();
+                let v = f64x4::new(core::ptr::read_unaligned(p.cast_const()));
+                let r = v * aval;
+                core::ptr::write_unaligned(p, r.to_array());
+            }
+            k += 4;
+        }
+        while k < chunk.len() {
+            chunk[k] *= alpha;
+            k += 1;
+        }
+    });
+    CooNd::from_parts_unchecked(a.shape.clone(), a.indices.clone(), data)
+}
+
+#[must_use]
+pub fn add_coond_f64_i64(a: &CooNd<f64, i64>, b: &CooNd<f64, i64>) -> CooNd<f64, i64> {
+    assert_eq!(a.shape.len(), b.shape.len());
+    assert_eq!(a.shape, b.shape);
+    let ndim = a.shape.len();
+    let nnz_a = a.data.len();
+    let nnz_b = b.data.len();
+    let mut strides = vec![0usize; ndim];
+    strides[ndim - 1] = 1;
+    for i in (0..ndim - 1).rev() {
+        let s = strides[i + 1]
+            .checked_mul(a.shape[i + 1])
+            .expect("shape product overflow");
+        strides[i] = s;
+    }
+    let mut acc = UsizeF64Map::with_capacity(nnz_a + nnz_b);
+    for k in 0..nnz_a {
+        let mut lin = 0usize;
+        let base = k * ndim;
+        for d in 0..ndim {
+            let idx = i64_to_usize(a.indices[base + d]);
+            lin = lin
+                .checked_add(idx.checked_mul(strides[d]).expect("linear index overflow"))
+                .expect("linear index overflow");
+        }
+        acc.insert_add(lin, a.data[k]);
+    }
+    for k in 0..nnz_b {
+        let mut lin = 0usize;
+        let base = k * ndim;
+        for d in 0..ndim {
+            let idx = i64_to_usize(b.indices[base + d]);
+            lin = lin
+                .checked_add(idx.checked_mul(strides[d]).expect("linear index overflow"))
+                .expect("linear index overflow");
+        }
+        acc.insert_add(lin, b.data[k]);
+    }
+    let mut pairs = acc.pairs();
+    pairs.sort_unstable_by_key(|(k, _)| *k);
+    let mut out_pairs: Vec<(usize, f64)> = Vec::with_capacity(pairs.len());
+    for (k, v) in pairs {
+        if v != 0.0 {
+            out_pairs.push((k, v));
+        }
+    }
+    let out_nnz = out_pairs.len();
+    let mut out_data = Vec::with_capacity(out_nnz);
+    let mut out_indices = vec![0i64; out_nnz * ndim];
+    for (pos, (mut lin, v)) in out_pairs.into_iter().enumerate() {
+        let base = pos * ndim;
+        for d in 0..ndim {
+            let s = strides[d];
+            let idx = lin / s;
+            lin -= idx * s;
+            out_indices[base + d] = idx as i64;
+        }
+        out_data.push(v);
+    }
+    CooNd::from_parts_unchecked(a.shape.clone(), out_indices, out_data)
+}
+
+#[must_use]
+pub fn sub_coond_f64_i64(a: &CooNd<f64, i64>, b: &CooNd<f64, i64>) -> CooNd<f64, i64> {
+    assert_eq!(a.shape.len(), b.shape.len());
+    assert_eq!(a.shape, b.shape);
+    let ndim = a.shape.len();
+    let nnz_a = a.data.len();
+    let nnz_b = b.data.len();
+    let mut strides = vec![0usize; ndim];
+    strides[ndim - 1] = 1;
+    for i in (0..ndim - 1).rev() {
+        let s = strides[i + 1]
+            .checked_mul(a.shape[i + 1])
+            .expect("shape product overflow");
+        strides[i] = s;
+    }
+    let mut acc = UsizeF64Map::with_capacity(nnz_a + nnz_b);
+    for k in 0..nnz_a {
+        let mut lin = 0usize;
+        let base = k * ndim;
+        for d in 0..ndim {
+            let idx = i64_to_usize(a.indices[base + d]);
+            lin = lin
+                .checked_add(idx.checked_mul(strides[d]).expect("linear index overflow"))
+                .expect("linear index overflow");
+        }
+        acc.insert_add(lin, a.data[k]);
+    }
+    for k in 0..nnz_b {
+        let mut lin = 0usize;
+        let base = k * ndim;
+        for d in 0..ndim {
+            let idx = i64_to_usize(b.indices[base + d]);
+            lin = lin
+                .checked_add(idx.checked_mul(strides[d]).expect("linear index overflow"))
+                .expect("linear index overflow");
+        }
+        acc.insert_add(lin, -b.data[k]);
+    }
+    let mut pairs = acc.pairs();
+    pairs.sort_unstable_by_key(|(k, _)| *k);
+    let mut out_pairs: Vec<(usize, f64)> = Vec::with_capacity(pairs.len());
+    for (k, v) in pairs {
+        if v != 0.0 {
+            out_pairs.push((k, v));
+        }
+    }
+    let out_nnz = out_pairs.len();
+    let mut out_data = Vec::with_capacity(out_nnz);
+    let mut out_indices = vec![0i64; out_nnz * ndim];
+    for (pos, (mut lin, v)) in out_pairs.into_iter().enumerate() {
+        let base = pos * ndim;
+        for d in 0..ndim {
+            let s = strides[d];
+            let idx = lin / s;
+            lin -= idx * s;
+            out_indices[base + d] = idx as i64;
+        }
+        out_data.push(v);
+    }
+    CooNd::from_parts_unchecked(a.shape.clone(), out_indices, out_data)
+}
+
+#[must_use]
+pub fn hadamard_coond_f64_i64(a: &CooNd<f64, i64>, b: &CooNd<f64, i64>) -> CooNd<f64, i64> {
+    assert_eq!(a.shape.len(), b.shape.len());
+    assert_eq!(a.shape, b.shape);
+    let ndim = a.shape.len();
+    let nnz_a = a.data.len();
+    let nnz_b = b.data.len();
+    let mut strides = vec![0usize; ndim];
+    strides[ndim - 1] = 1;
+    for i in (0..ndim - 1).rev() {
+        let s = strides[i + 1]
+            .checked_mul(a.shape[i + 1])
+            .expect("shape product overflow");
+        strides[i] = s;
+    }
+    let mut acc_a = UsizeF64Map::with_capacity(nnz_a);
+    for k in 0..nnz_a {
+        let mut lin = 0usize;
+        let base = k * ndim;
+        for d in 0..ndim {
+            let idx = i64_to_usize(a.indices[base + d]);
+            lin = lin
+                .checked_add(idx.checked_mul(strides[d]).expect("linear index overflow"))
+                .expect("linear index overflow");
+        }
+        acc_a.insert_add(lin, a.data[k]);
+    }
+    let mut acc_b = UsizeF64Map::with_capacity(nnz_b);
+    for k in 0..nnz_b {
+        let mut lin = 0usize;
+        let base = k * ndim;
+        for d in 0..ndim {
+            let idx = i64_to_usize(b.indices[base + d]);
+            lin = lin
+                .checked_add(idx.checked_mul(strides[d]).expect("linear index overflow"))
+                .expect("linear index overflow");
+        }
+        acc_b.insert_add(lin, b.data[k]);
+    }
+    let mut pa = acc_a.pairs();
+    let mut pb = acc_b.pairs();
+    pa.sort_unstable_by_key(|(k, _)| *k);
+    pb.sort_unstable_by_key(|(k, _)| *k);
+    let mut outs: Vec<(usize, f64)> = Vec::new();
+    let (mut ia, mut ib) = (0usize, 0usize);
+    while ia < pa.len() && ib < pb.len() {
+        let (ka, va) = pa[ia];
+        let (kb, vb) = pb[ib];
+        if ka == kb {
+            let v = va * vb;
+            if v != 0.0 {
+                outs.push((ka, v));
+            }
+            ia += 1;
+            ib += 1;
+        } else if ka < kb {
+            ia += 1;
+        } else {
+            ib += 1;
+        }
+    }
+    let out_nnz = outs.len();
+    let mut out_data = Vec::with_capacity(out_nnz);
+    let mut out_indices = vec![0i64; out_nnz * ndim];
+    for (pos, (mut lin, v)) in outs.into_iter().enumerate() {
+        let base = pos * ndim;
+        for d in 0..ndim {
+            let s = strides[d];
+            let idx = lin / s;
+            lin -= idx * s;
+            out_indices[base + d] = idx as i64;
+        }
+        out_data.push(v);
+    }
+    CooNd::from_parts_unchecked(a.shape.clone(), out_indices, out_data)
 }
 #[must_use]
 pub fn add_csc_f64_i64(a: &Csc<f64, i64>, b: &Csc<f64, i64>) -> Csc<f64, i64> {

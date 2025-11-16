@@ -10,7 +10,7 @@
     clippy::many_single_char_names,
     reason = "Math kernels conventionally use short names like i/j/k/s/e/p/v"
 )]
-use lacuna_core::{Coo, Csc, Csr};
+use lacuna_core::{Coo, Csc, Csr, CooNd};
 use rayon::prelude::*;
 use wide::f64x4;
 
@@ -23,6 +23,36 @@ fn i64_to_usize(x: i64) -> usize {
     {
         x as usize
     }
+}
+
+#[must_use]
+pub fn prune_eps_coond(a: &CooNd<f64, i64>, eps: f64) -> CooNd<f64, i64> {
+    if eps < 0.0 {
+        return a.clone();
+    }
+    let nnz = a.data.len();
+    if nnz == 0 {
+        return a.clone();
+    }
+    let ndim = a.shape.len();
+    let mut data = Vec::with_capacity(nnz);
+    let mut indices = Vec::with_capacity(nnz * ndim);
+    for k in 0..nnz {
+        let v = a.data[k];
+        if v.abs() > eps {
+            data.push(v);
+            let base = k * ndim;
+            for d in 0..ndim {
+                indices.push(a.indices[base + d]);
+            }
+        }
+    }
+    CooNd::from_parts_unchecked(a.shape.clone(), indices, data)
+}
+
+#[must_use]
+pub fn eliminate_zeros_coond(a: &CooNd<f64, i64>) -> CooNd<f64, i64> {
+    prune_eps_coond(a, 0.0)
 }
 
 #[must_use]

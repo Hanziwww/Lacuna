@@ -3,8 +3,8 @@
     reason = "Math kernels conventionally use i/j/k/p for indices"
 )]
 use crate::convert::csr_to_csc_f64_i64;
-use crate::util::i64_to_usize;
-use lacuna_core::{Coo, Csc, Csr};
+use crate::util::{i64_to_usize, UsizeF64Map};
+use lacuna_core::{Coo, Csc, Csr, CooNd};
 use rayon::prelude::*;
 use wide::f64x4;
 
@@ -16,6 +16,7 @@ pub fn spmm_auto_f64_i64(a: &Csr<f64, i64>, b: &[f64], k: usize) -> Vec<f64> {
     if ncols == 0 || a.nrows == 0 || k == 0 || nnz == 0 {
         return vec![0.0; a.nrows * k];
     }
+
     let avg_col_nnz = nnz / ncols.max(1);
     // Heuristic: prefer CSC when k large or column reuse is high
     if k >= 128 || (k >= 64 && avg_col_nnz >= 8) {
@@ -108,6 +109,121 @@ pub fn spmm_f64_i64(a: &Csr<f64, i64>, b: &[f64], k: usize) -> Vec<f64> {
         }
     });
     y
+}
+
+/// ND SpMM along a specific axis: out = mode-axis product with B (shape[axis] x k)
+#[must_use]
+pub fn spmm_coond_f64_i64(
+    a: &CooNd<f64, i64>,
+    axis: usize,
+    b: &[f64],
+    k: usize,
+) -> CooNd<f64, i64> {
+    let ndim = a.shape.len();
+    assert!(axis < ndim, "axis out of bounds");
+    assert_eq!(b.len(), a.shape[axis] * k, "B must be shape[axis] x k row-major");
+
+    let nnz = a.data.len();
+    let mut out_shape = a.shape.clone();
+    out_shape[axis] = k;
+    if nnz == 0 || k == 0 {
+        return CooNd::from_parts_unchecked(out_shape, Vec::new(), Vec::new());
+    }
+
+    // Row-major strides for output shape
+    let mut strides = vec![0usize; ndim];
+    strides[ndim - 1] = 1;
+    for i in (0..ndim - 1).rev() {
+        let s = strides[i + 1]
+            .checked_mul(out_shape[i + 1])
+            .expect("shape product overflow");
+        strides[i] = s;
+    }
+    let stride_axis = strides[axis];
+
+    let mut acc = UsizeF64Map::with_capacity(nnz * (k.min(8))); // heuristic
+    for p in 0..nnz {
+        let base = p * ndim;
+        let ax_idx = i64_to_usize(a.indices[base + axis]);
+        let mut lin_base: usize = 0;
+        for d in 0..ndim {
+            if d == axis {
+                continue;
+            }
+            let idx = i64_to_usize(a.indices[base + d]);
+            lin_base = lin_base
+                .checked_add(idx.checked_mul(strides[d]).expect("linear index overflow"))
+                .expect("linear index overflow");
+        }
+        let a_val = a.data[p];
+        let b_row_base = ax_idx * k;
+        let mut c = 0usize;
+        let limit4 = k & !3;
+        while c < limit4 {
+            let v0 = a_val * unsafe { *b.as_ptr().add(b_row_base + c) };
+            let v1 = a_val * unsafe { *b.as_ptr().add(b_row_base + c + 1) };
+            let v2 = a_val * unsafe { *b.as_ptr().add(b_row_base + c + 2) };
+            let v3 = a_val * unsafe { *b.as_ptr().add(b_row_base + c + 3) };
+            if v0 != 0.0 {
+                let key = lin_base
+                    .checked_add(c.checked_mul(stride_axis).expect("linear index overflow"))
+                    .expect("linear index overflow");
+                acc.insert_add(key, v0);
+            }
+            if v1 != 0.0 {
+                let key = lin_base
+                    .checked_add((c + 1).checked_mul(stride_axis).expect("linear index overflow"))
+                    .expect("linear index overflow");
+                acc.insert_add(key, v1);
+            }
+            if v2 != 0.0 {
+                let key = lin_base
+                    .checked_add((c + 2).checked_mul(stride_axis).expect("linear index overflow"))
+                    .expect("linear index overflow");
+                acc.insert_add(key, v2);
+            }
+            if v3 != 0.0 {
+                let key = lin_base
+                    .checked_add((c + 3).checked_mul(stride_axis).expect("linear index overflow"))
+                    .expect("linear index overflow");
+                acc.insert_add(key, v3);
+            }
+            c += 4;
+        }
+        while c < k {
+            let v = a_val * unsafe { *b.as_ptr().add(b_row_base + c) };
+            if v != 0.0 {
+                let key = lin_base
+                    .checked_add(c.checked_mul(stride_axis).expect("linear index overflow"))
+                    .expect("linear index overflow");
+                acc.insert_add(key, v);
+            }
+            c += 1;
+        }
+    }
+
+    let mut pairs = acc.pairs();
+    pairs.sort_unstable_by_key(|(k, _)| *k);
+    let mut out_pairs: Vec<(usize, f64)> = Vec::with_capacity(pairs.len());
+    for (key, v) in pairs {
+        if v != 0.0 {
+            out_pairs.push((key, v));
+        }
+    }
+    let out_nnz = out_pairs.len();
+    let mut out_data = Vec::with_capacity(out_nnz);
+    let mut out_indices = vec![0i64; out_nnz * ndim];
+    for (pos, (mut lin, v)) in out_pairs.into_iter().enumerate() {
+        let base = pos * ndim;
+        for d in 0..ndim {
+            let s = strides[d];
+            let idx = lin / s;
+            lin -= idx * s;
+            out_indices[base + d] = idx as i64;
+        }
+        out_data.push(v);
+    }
+    CooNd::from_parts_unchecked(out_shape, out_indices, out_data)
 }
 
 /// Y = A @ B for CSC A, B is (ncols, k) row-major

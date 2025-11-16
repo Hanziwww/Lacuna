@@ -6,7 +6,7 @@ use crate::util::{
     DenseStripe, SMALL_DIM_LIMIT, SMALL_NNZ_LIMIT, STRIPE_ROWS, StripeAccs, UsizeF64Map,
     i64_to_usize,
 };
-use lacuna_core::{Coo, Csc, Csr};
+use lacuna_core::{Coo, Csc, Csr, CooNd};
 use rayon::prelude::*;
 use std::cell::RefCell;
 use thread_local::ThreadLocal;
@@ -160,6 +160,74 @@ pub fn spmv_csc_f64_i64(a: &Csc<f64, i64>, x: &[f64]) -> Vec<f64> {
         }
     }
     y
+}
+
+/// ND SpMV along a specific axis: out = tensordot(a, x, axes=[axis])
+#[must_use]
+pub fn spmv_coond_f64_i64(
+    a: &CooNd<f64, i64>,
+    axis: usize,
+    x: &[f64],
+) -> CooNd<f64, i64> {
+    let ndim = a.shape.len();
+    assert!(axis < ndim, "axis out of bounds");
+    assert_eq!(x.len(), a.shape[axis], "x length must equal shape[axis]");
+
+    let nnz = a.data.len();
+    let remain_axes: Vec<usize> = (0..ndim).filter(|&d| d != axis).collect();
+    assert!(
+        !remain_axes.is_empty(),
+        "contracting over all axes yields scalar; use sum_coond_f64 instead",
+    );
+    if nnz == 0 {
+        let out_shape: Vec<usize> = remain_axes.iter().map(|&d| a.shape[d]).collect();
+        return CooNd::from_parts_unchecked(out_shape, Vec::new(), Vec::new());
+    }
+
+    let out_ndim = remain_axes.len();
+    let out_shape: Vec<usize> = remain_axes.iter().map(|&d| a.shape[d]).collect();
+    let mut strides = vec![0usize; out_ndim];
+    strides[out_ndim - 1] = 1;
+    for i in (0..out_ndim - 1).rev() {
+        let s = strides[i + 1]
+            .checked_mul(out_shape[i + 1])
+            .expect("shape product overflow");
+        strides[i] = s;
+    }
+
+    let mut acc = UsizeF64Map::with_capacity(nnz);
+    for k in 0..nnz {
+        let base = k * ndim;
+        let ax_idx = i64_to_usize(a.indices[base + axis]);
+        let mut lin: usize = 0;
+        for (m, &d) in remain_axes.iter().enumerate() {
+            let idx = i64_to_usize(a.indices[base + d]);
+            lin = lin
+                .checked_add(idx.checked_mul(strides[m]).expect("linear index overflow"))
+                .expect("linear index overflow");
+        }
+        let contrib = a.data[k] * x[ax_idx];
+        if contrib != 0.0 {
+            acc.insert_add(lin, contrib);
+        }
+    }
+
+    let mut pairs = acc.pairs();
+    pairs.sort_unstable_by_key(|(k, _)| *k);
+    let out_nnz = pairs.len();
+    let mut out_data = Vec::with_capacity(out_nnz);
+    let mut out_indices = vec![0i64; out_nnz * out_ndim];
+    for (pos, (mut lin, v)) in pairs.into_iter().enumerate() {
+        let base = pos * out_ndim;
+        for m in 0..out_ndim {
+            let s = strides[m];
+            let idx = lin / s;
+            lin -= idx * s;
+            out_indices[base + m] = idx as i64;
+        }
+        out_data.push(v);
+    }
+    CooNd::from_parts_unchecked(out_shape, out_indices, out_data)
 }
 
 /// y = A @ x for COO
