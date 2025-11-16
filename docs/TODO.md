@@ -19,9 +19,9 @@ Project-wide checklist derived from PLAN.md. Items are grouped by milestones; al
   - [X] Implement and optimize the basic arithmetic kernels
 - **M2: Conversions and Formats**
 
-  - [ ] Public COO and CSC types
-  - [ ] Conversions: CSR <-> COO <-> CSC
-  - [ ] Arithmetic: A + B, Hadamard A.multiply(B)
+  - [X] Public COO and CSC types
+  - [X] Conversions: CSR <-> COO <-> CSC
+  - [X] Arithmetic: A + B, Hadamard A.multiply(B)
   - [ ] IO: Matrix Market (.mtx) and NPZ save/load
   - [ ] Dtype/index casting
 - **M3: Performance and Stability**
@@ -46,7 +46,7 @@ Project-wide checklist derived from PLAN.md. Items are grouped by milestones; al
   - [ ] Future CSF for ND advanced ops (v0.4+)
 - **Python API**
 
-  - [ ] `lacun.sparse` classes: SparseArray/SparseMatrix, CSR/CSC/COO
+  - [X] `lacun.sparse` classes: SparseArray/SparseMatrix, CSR/CSC/COO
   - [ ] Construction and conversion APIs; SciPy/NumPy bridges
   - [X] Ops surface: matmul, add, multiply, transpose, sum; slicing semantics
 - **Rust Design**
@@ -76,6 +76,10 @@ Project-wide checklist derived from PLAN.md. Items are grouped by milestones; al
   - Arithmetic: add_csr (A+B), mul_scalar (alpha*A)
     - [X] Feature done
     - [X] Tests done
+  - Utilities / Refactors
+    - [X] Centralize reusable kernel utilities in `util.rs` (constants, helpers, `UsizeF64Map`)
+    - [X] Replace HashMap-based sparse accumulators with `UsizeF64Map` in `reduce.rs` and `spmv.rs`
+    - [X] Improve reduction paths: parallel small-dimension branches; SIMD stripe merge for column sums
 - **crates/lacuna-py** (PyO3 bindings)
 
   - SpMV / SpMM
@@ -84,6 +88,8 @@ Project-wide checklist derived from PLAN.md. Items are grouped by milestones; al
   - Reductions / Transpose / Cleanup / Arithmetic
     - [X] Feature done (`sum/row_sums/col_sums`, `transpose`, `prune/eliminate_zeros`, `add/mul_scalar` bindings)
     - [X] Tests done (indirectly covered via Python tests)
+  - Bindings structure
+    - [X] Split monolithic `src/lib.rs` into modules: `csr.rs`, `csc.rs`, `coo.rs`, `functions.rs`; keep `lib.rs` as aggregator (no Python API changes)
 - **python/lacuna** (High-level Python API: CSR facade)
 
   - SpMV
@@ -120,7 +126,7 @@ Project-wide checklist derived from PLAN.md. Items are grouped by milestones; al
 
   - [X] Arithmetic: subtraction (A - B)
   - [X] Arithmetic: Hadamard elementwise multiply `A.multiply(B)`
-  - [ ] Format conversions: CSR <-> CSC, CSR <-> COO
+  - [X] Format conversions: CSR <-> CSC, CSR <-> COO
   - [ ] ND baseline (COO-ND): elementwise ops with broadcasting; `sum/mean` over axes; `transpose/permute`; `reshape`
   - [ ] Reordering: CSR reorder (cache locality)
   - [ ] Cache-aware/blocked SpMM improvements

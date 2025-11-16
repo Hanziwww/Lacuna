@@ -11,7 +11,7 @@
     reason = "Math kernels conventionally use i/j/k/p for indices"
 )]
 use core::cmp::Ordering;
-use lacuna_core::Csr;
+use lacuna_core::{Coo, Csc, Csr};
 use rayon::prelude::*;
 use wide::f64x4;
 
@@ -24,6 +24,307 @@ fn i64_to_usize(x: i64) -> usize {
     {
         x as usize
     }
+}
+#[must_use]
+pub fn add_csc_f64_i64(a: &Csc<f64, i64>, b: &Csc<f64, i64>) -> Csc<f64, i64> {
+    assert_eq!(a.nrows, b.nrows);
+    assert_eq!(a.ncols, b.ncols);
+    let ncols = a.ncols;
+    let counts: Vec<usize> = (0..ncols)
+        .into_par_iter()
+        .map(|j| {
+            let sa = i64_to_usize(a.indptr[j]);
+            let ea = i64_to_usize(a.indptr[j + 1]);
+            let sb = i64_to_usize(b.indptr[j]);
+            let eb = i64_to_usize(b.indptr[j + 1]);
+            let alen = ea - sa;
+            let blen = eb - sb;
+            unsafe {
+                add_row_count(
+                    a.indices.as_ptr().add(sa),
+                    a.data.as_ptr().add(sa),
+                    alen,
+                    b.indices.as_ptr().add(sb),
+                    b.data.as_ptr().add(sb),
+                    blen,
+                )
+            }
+        })
+        .collect();
+    let mut indptr = vec![0i64; ncols + 1];
+    for j in 0..ncols {
+        indptr[j + 1] = indptr[j] + usize_to_i64(counts[j]);
+    }
+    let nnz = i64_to_usize(indptr[ncols]);
+    let mut indices = vec![0i64; nnz];
+    let mut data = vec![0.0f64; nnz];
+    let pi_addr = indices.as_mut_ptr() as usize;
+    let pv_addr = data.as_mut_ptr() as usize;
+    let indptr_addr = indptr.as_ptr() as usize;
+    (0..ncols).into_par_iter().for_each(move |j| {
+        let sa = i64_to_usize(a.indptr[j]);
+        let ea = i64_to_usize(a.indptr[j + 1]);
+        let sb = i64_to_usize(b.indptr[j]);
+        let eb = i64_to_usize(b.indptr[j + 1]);
+        let alen = ea - sa;
+        let blen = eb - sb;
+        let col_start = i64_to_usize(unsafe { *(indptr_addr as *const i64).add(j) });
+        unsafe {
+            let pi = (pi_addr as *mut i64).add(col_start);
+            let pv = (pv_addr as *mut f64).add(col_start);
+            let written = add_row_fill(
+                a.indices.as_ptr().add(sa),
+                a.data.as_ptr().add(sa),
+                alen,
+                b.indices.as_ptr().add(sb),
+                b.data.as_ptr().add(sb),
+                blen,
+                pi,
+                pv,
+            );
+            let expected = i64_to_usize(*(indptr_addr as *const i64).add(j + 1)) - col_start;
+            debug_assert_eq!(written, expected);
+        }
+    });
+    Csc::from_parts_unchecked(a.nrows, ncols, indptr, indices, data)
+}
+
+#[must_use]
+pub fn sub_csc_f64_i64(a: &Csc<f64, i64>, b: &Csc<f64, i64>) -> Csc<f64, i64> {
+    assert_eq!(a.nrows, b.nrows);
+    assert_eq!(a.ncols, b.ncols);
+    let ncols = a.ncols;
+    let counts: Vec<usize> = (0..ncols)
+        .into_par_iter()
+        .map(|j| {
+            let sa = i64_to_usize(a.indptr[j]);
+            let ea = i64_to_usize(a.indptr[j + 1]);
+            let sb = i64_to_usize(b.indptr[j]);
+            let eb = i64_to_usize(b.indptr[j + 1]);
+            let alen = ea - sa;
+            let blen = eb - sb;
+            unsafe {
+                sub_row_count(
+                    a.indices.as_ptr().add(sa),
+                    a.data.as_ptr().add(sa),
+                    alen,
+                    b.indices.as_ptr().add(sb),
+                    b.data.as_ptr().add(sb),
+                    blen,
+                )
+            }
+        })
+        .collect();
+    let mut indptr = vec![0i64; ncols + 1];
+    for j in 0..ncols {
+        indptr[j + 1] = indptr[j] + usize_to_i64(counts[j]);
+    }
+    let nnz = i64_to_usize(indptr[ncols]);
+    let mut indices = vec![0i64; nnz];
+    let mut data = vec![0.0f64; nnz];
+    let pi_addr = indices.as_mut_ptr() as usize;
+    let pv_addr = data.as_mut_ptr() as usize;
+    let indptr_addr = indptr.as_ptr() as usize;
+    (0..ncols).into_par_iter().for_each(move |j| {
+        let sa = i64_to_usize(a.indptr[j]);
+        let ea = i64_to_usize(a.indptr[j + 1]);
+        let sb = i64_to_usize(b.indptr[j]);
+        let eb = i64_to_usize(b.indptr[j + 1]);
+        let alen = ea - sa;
+        let blen = eb - sb;
+        let col_start = i64_to_usize(unsafe { *(indptr_addr as *const i64).add(j) });
+        unsafe {
+            let pi = (pi_addr as *mut i64).add(col_start);
+            let pv = (pv_addr as *mut f64).add(col_start);
+            let written = sub_row_fill(
+                a.indices.as_ptr().add(sa),
+                a.data.as_ptr().add(sa),
+                alen,
+                b.indices.as_ptr().add(sb),
+                b.data.as_ptr().add(sb),
+                blen,
+                pi,
+                pv,
+            );
+            let expected = i64_to_usize(*(indptr_addr as *const i64).add(j + 1)) - col_start;
+            debug_assert_eq!(written, expected);
+        }
+    });
+    Csc::from_parts_unchecked(a.nrows, ncols, indptr, indices, data)
+}
+
+#[must_use]
+pub fn hadamard_csc_f64_i64(a: &Csc<f64, i64>, b: &Csc<f64, i64>) -> Csc<f64, i64> {
+    assert_eq!(a.nrows, b.nrows);
+    assert_eq!(a.ncols, b.ncols);
+    let ncols = a.ncols;
+    let counts: Vec<usize> = (0..ncols)
+        .into_par_iter()
+        .map(|j| {
+            let sa = i64_to_usize(a.indptr[j]);
+            let ea = i64_to_usize(a.indptr[j + 1]);
+            let sb = i64_to_usize(b.indptr[j]);
+            let eb = i64_to_usize(b.indptr[j + 1]);
+            let alen = ea - sa;
+            let blen = eb - sb;
+            unsafe {
+                hadamard_row_count(
+                    a.indices.as_ptr().add(sa),
+                    a.data.as_ptr().add(sa),
+                    alen,
+                    b.indices.as_ptr().add(sb),
+                    b.data.as_ptr().add(sb),
+                    blen,
+                )
+            }
+        })
+        .collect();
+    let mut indptr = vec![0i64; ncols + 1];
+    for j in 0..ncols {
+        indptr[j + 1] = indptr[j] + usize_to_i64(counts[j]);
+    }
+    let nnz = i64_to_usize(indptr[ncols]);
+    let mut indices = vec![0i64; nnz];
+    let mut data = vec![0.0f64; nnz];
+    let pi_addr = indices.as_mut_ptr() as usize;
+    let pv_addr = data.as_mut_ptr() as usize;
+    let indptr_addr = indptr.as_ptr() as usize;
+    (0..ncols).into_par_iter().for_each(move |j| {
+        let sa = i64_to_usize(a.indptr[j]);
+        let ea = i64_to_usize(a.indptr[j + 1]);
+        let sb = i64_to_usize(b.indptr[j]);
+        let eb = i64_to_usize(b.indptr[j + 1]);
+        let alen = ea - sa;
+        let blen = eb - sb;
+        let col_start = i64_to_usize(unsafe { *(indptr_addr as *const i64).add(j) });
+        unsafe {
+            let pi = (pi_addr as *mut i64).add(col_start);
+            let pv = (pv_addr as *mut f64).add(col_start);
+            let written = hadamard_row_fill(
+                a.indices.as_ptr().add(sa),
+                a.data.as_ptr().add(sa),
+                alen,
+                b.indices.as_ptr().add(sb),
+                b.data.as_ptr().add(sb),
+                blen,
+                pi,
+                pv,
+            );
+            let expected = i64_to_usize(*(indptr_addr as *const i64).add(j + 1)) - col_start;
+            debug_assert_eq!(written, expected);
+        }
+    });
+    Csc::from_parts_unchecked(a.nrows, ncols, indptr, indices, data)
+}
+#[must_use]
+#[allow(clippy::float_cmp)]
+pub fn mul_scalar_csc_f64(a: &Csc<f64, i64>, alpha: f64) -> Csc<f64, i64> {
+    if alpha == 1.0 {
+        return a.clone();
+    }
+    let nrows = a.nrows;
+    let ncols = a.ncols;
+    if alpha == 0.0 {
+        let data = vec![0.0f64; a.data.len()];
+        return Csc::from_parts_unchecked(nrows, ncols, a.indptr.clone(), a.indices.clone(), data);
+    }
+    let len = a.data.len();
+    if len < SMALL_NNZ_SIMD {
+        let mut data = a.data.clone();
+        let aval = f64x4::splat(alpha);
+        let mut i = 0usize;
+        let limit4 = len & !3;
+        while i < limit4 {
+            unsafe {
+                let p = data.as_mut_ptr().add(i).cast::<[f64; 4]>();
+                let v = f64x4::new(core::ptr::read_unaligned(p.cast_const()));
+                let r = v * aval;
+                core::ptr::write_unaligned(p, r.to_array());
+            }
+            i += 4;
+        }
+        while i < len {
+            data[i] *= alpha;
+            i += 1;
+        }
+        return Csc::from_parts_unchecked(nrows, ncols, a.indptr.clone(), a.indices.clone(), data);
+    }
+    let mut data = a.data.clone();
+    let chunk_size = 4096;
+    let aval = f64x4::splat(alpha);
+    data.par_chunks_mut(chunk_size).for_each(|chunk| {
+        let mut k = 0usize;
+        let limit4 = chunk.len() & !3;
+        while k < limit4 {
+            unsafe {
+                let p = chunk.as_mut_ptr().add(k).cast::<[f64; 4]>();
+                let v = f64x4::new(core::ptr::read_unaligned(p.cast_const()));
+                let r = v * aval;
+                core::ptr::write_unaligned(p, r.to_array());
+            }
+            k += 4;
+        }
+        while k < chunk.len() {
+            chunk[k] *= alpha;
+            k += 1;
+        }
+    });
+    Csc::from_parts_unchecked(nrows, ncols, a.indptr.clone(), a.indices.clone(), data)
+}
+
+#[must_use]
+#[allow(clippy::float_cmp)]
+pub fn mul_scalar_coo_f64(a: &Coo<f64, i64>, alpha: f64) -> Coo<f64, i64> {
+    if alpha == 1.0 {
+        return a.clone();
+    }
+    let nrows = a.nrows;
+    let ncols = a.ncols;
+    if alpha == 0.0 {
+        let data = vec![0.0f64; a.data.len()];
+        return Coo::from_parts_unchecked(nrows, ncols, a.row.clone(), a.col.clone(), data);
+    }
+    let mut data = a.data.clone();
+    let len = data.len();
+    if len < SMALL_NNZ_SIMD {
+        let aval = f64x4::splat(alpha);
+        let mut i = 0usize;
+        let limit4 = len & !3;
+        while i < limit4 {
+            unsafe {
+                let p = data.as_mut_ptr().add(i).cast::<[f64; 4]>();
+                let v = f64x4::new(core::ptr::read_unaligned(p.cast_const()));
+                let r = v * aval;
+                core::ptr::write_unaligned(p, r.to_array());
+            }
+            i += 4;
+        }
+        while i < len {
+            data[i] *= alpha;
+            i += 1;
+        }
+        return Coo::from_parts_unchecked(nrows, ncols, a.row.clone(), a.col.clone(), data);
+    }
+    let chunk_size = 4096;
+    let aval = f64x4::splat(alpha);
+    data.par_chunks_mut(chunk_size).for_each(|chunk| {
+        let mut k = 0usize;
+        let limit4 = chunk.len() & !3;
+        while k < limit4 {
+            unsafe {
+                let p = chunk.as_mut_ptr().add(k).cast::<[f64; 4]>();
+                let v = f64x4::new(core::ptr::read_unaligned(p.cast_const()));
+                let r = v * aval;
+                core::ptr::write_unaligned(p, r.to_array());
+            }
+            k += 4;
+        }
+        while k < chunk.len() {
+            chunk[k] *= alpha;
+            k += 1;
+        }
+    });
+    Coo::from_parts_unchecked(nrows, ncols, a.row.clone(), a.col.clone(), data)
 }
 
 #[inline]

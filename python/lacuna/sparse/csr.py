@@ -43,6 +43,23 @@ class CSR(SparseMatrix):
     Notes
     -----
     The constructor may raise if the structure is invalid when `check=True`.
+
+    Examples
+    --------
+    Construct a small CSR and run basic ops::
+
+        >>> import numpy as np
+        >>> from lacuna.sparse import CSR
+        >>> indptr = np.array([0, 2, 3])  # 2 rows, 3 nnz
+        >>> indices = np.array([0, 2, 1])
+        >>> data = np.array([1.0, 3.0, 2.0])
+        >>> a = CSR(indptr, indices, data, shape=(2, 3))
+        >>> a.nnz
+        3
+        >>> (a @ np.array([1.0, 0.0, 1.0])).tolist()  # SpMV
+        [4.0, 2.0]
+        >>> a.sum()
+        6.0
     """
 
     def __init__(self, indptr, indices, data, shape, dtype=np.float64, check=True):

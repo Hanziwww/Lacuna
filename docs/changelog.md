@@ -2,6 +2,28 @@
 
 This project adheres to Keep a Changelog and Semantic Versioning.
 
+## [Unreleased]
+
+- Added
+
+  - CSC/COO Python classes and bindings parity with CSR (`Csc64`, `Coo64`).
+  - Format conversions exposed via Python: CSR<->CSC, CSR<->COO, CSC<->COO.
+
+- Changed
+
+  - Split monolithic `lacuna-py/src/lib.rs` into modules: `csr.rs`, `csc.rs`, `coo.rs`, `functions.rs`.
+    - No Python API changes; `lib.rs` now only aggregates and registers symbols.
+  - Centralized kernel utilities in `lacuna-kernels/src/util.rs` (constants, helpers, `UsizeF64Map`).
+
+- Performance
+
+  - Replaced `HashMap`-based sparse accumulators with a custom linear-probing `UsizeF64Map` in `reduce.rs` and `spmv.rs`.
+  - Parallelized small-dimension reduction paths; SIMD-accelerated stripe merge in column-sum kernels.
+
+- Fixed
+
+  - Balanced unmatched braces in `reduce.rs` causing "unclosed delimiter" compile errors; added missing closers.
+
 ## v0.1.0
 
 - Added

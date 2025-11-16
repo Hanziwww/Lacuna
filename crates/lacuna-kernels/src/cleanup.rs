@@ -10,7 +10,7 @@
     clippy::many_single_char_names,
     reason = "Math kernels conventionally use short names like i/j/k/s/e/p/v"
 )]
-use lacuna_core::Csr;
+use lacuna_core::{Coo, Csc, Csr};
 use rayon::prelude::*;
 use wide::f64x4;
 
@@ -23,6 +23,171 @@ fn i64_to_usize(x: i64) -> usize {
     {
         x as usize
     }
+}
+
+#[must_use]
+pub fn eliminate_zeros_csc(a: &Csc<f64, i64>) -> Csc<f64, i64> {
+    prune_eps_csc(a, 0.0)
+}
+
+#[must_use]
+#[allow(clippy::too_many_lines)]
+pub fn prune_eps_csc(a: &Csc<f64, i64>, eps: f64) -> Csc<f64, i64> {
+    if eps < 0.0 {
+        return a.clone();
+    }
+    if eps == 0.0 {
+        let has_zero = a.data.par_iter().any(|&v| v == 0.0);
+        if !has_zero {
+            return a.clone();
+        }
+    }
+    let nnz_total = a.data.len();
+    if nnz_total < SMALL_NNZ_PRUNE {
+        let ncols = a.ncols;
+        let mut indptr = vec![0i64; ncols + 1];
+        for j in 0..ncols {
+            let s = i64_to_usize(a.indptr[j]);
+            let e = i64_to_usize(a.indptr[j + 1]);
+            let col = &a.data[s..e];
+            let mut cnt = 0usize;
+            let mut k = 0usize;
+            let limit4 = col.len() & !3;
+            while k < limit4 {
+                let v = unsafe {
+                    let p = col.as_ptr().add(k).cast::<[f64; 4]>();
+                    f64x4::new(core::ptr::read_unaligned(p))
+                };
+                let arr = v.to_array();
+                if arr[0].abs() > eps {
+                    cnt += 1;
+                }
+                if arr[1].abs() > eps {
+                    cnt += 1;
+                }
+                if arr[2].abs() > eps {
+                    cnt += 1;
+                }
+                if arr[3].abs() > eps {
+                    cnt += 1;
+                }
+                k += 4;
+            }
+            while k < col.len() {
+                if col[k].abs() > eps {
+                    cnt += 1;
+                }
+                k += 1;
+            }
+            indptr[j + 1] = indptr[j] + usize_to_i64(cnt);
+        }
+        let nnz = i64_to_usize(indptr[ncols]);
+        let mut indices = vec![0i64; nnz];
+        let mut data = vec![0.0f64; nnz];
+        for j in 0..ncols {
+            let s = i64_to_usize(a.indptr[j]);
+            let e = i64_to_usize(a.indptr[j + 1]);
+            let mut dst = i64_to_usize(indptr[j]);
+            for p in s..e {
+                let v = a.data[p];
+                if v.abs() > eps {
+                    indices[dst] = a.indices[p];
+                    data[dst] = v;
+                    dst += 1;
+                }
+            }
+        }
+        return Csc::from_parts_unchecked(a.nrows, ncols, indptr, indices, data);
+    }
+    let ncols = a.ncols;
+    let mut counts = vec![0usize; ncols];
+    counts.par_iter_mut().enumerate().for_each(|(j, c)| {
+        let s = i64_to_usize(a.indptr[j]);
+        let e = i64_to_usize(a.indptr[j + 1]);
+        let col = &a.data[s..e];
+        let mut cnt = 0usize;
+        let mut k = 0usize;
+        let limit4 = col.len() & !3;
+        while k < limit4 {
+            let v = unsafe {
+                let p = col.as_ptr().add(k).cast::<[f64; 4]>();
+                f64x4::new(core::ptr::read_unaligned(p))
+            };
+            let arr = v.to_array();
+            if arr[0].abs() > eps {
+                cnt += 1;
+            }
+            if arr[1].abs() > eps {
+                cnt += 1;
+            }
+            if arr[2].abs() > eps {
+                cnt += 1;
+            }
+            if arr[3].abs() > eps {
+                cnt += 1;
+            }
+            k += 4;
+        }
+        while k < col.len() {
+            if col[k].abs() > eps {
+                cnt += 1;
+            }
+            k += 1;
+        }
+        *c = cnt;
+    });
+    let mut indptr = vec![0i64; ncols + 1];
+    for j in 0..ncols {
+        indptr[j + 1] = indptr[j] + usize_to_i64(counts[j]);
+    }
+    let nnz = i64_to_usize(indptr[ncols]);
+    let mut indices = vec![0i64; nnz];
+    let mut data = vec![0.0f64; nnz];
+    let pi_addr = indices.as_mut_ptr() as usize;
+    let pv_addr = data.as_mut_ptr() as usize;
+    let indptr_addr = indptr.as_ptr() as usize;
+    (0..ncols).into_par_iter().for_each(move |j| {
+        let s = i64_to_usize(a.indptr[j]);
+        let e = i64_to_usize(a.indptr[j + 1]);
+        let mut dst = i64_to_usize(unsafe { *(indptr_addr as *const i64).add(j) });
+        unsafe {
+            let pi = pi_addr as *mut i64;
+            let pv = pv_addr as *mut f64;
+            for p in s..e {
+                let v = a.data[p];
+                if v.abs() > eps {
+                    std::ptr::write(pi.add(dst), a.indices[p]);
+                    std::ptr::write(pv.add(dst), v);
+                    dst += 1;
+                }
+            }
+        }
+    });
+    Csc::from_parts_unchecked(a.nrows, ncols, indptr, indices, data)
+}
+
+#[must_use]
+pub fn eliminate_zeros_coo(a: &Coo<f64, i64>) -> Coo<f64, i64> {
+    prune_eps_coo(a, 0.0)
+}
+
+#[must_use]
+pub fn prune_eps_coo(a: &Coo<f64, i64>, eps: f64) -> Coo<f64, i64> {
+    if eps < 0.0 {
+        return a.clone();
+    }
+    let mut row = Vec::with_capacity(a.row.len());
+    let mut col = Vec::with_capacity(a.col.len());
+    let mut data = Vec::with_capacity(a.data.len());
+    for k in 0..a.data.len() {
+        let v = a.data[k];
+        if v.abs() > eps {
+            row.push(a.row[k]);
+            col.push(a.col[k]);
+            data.push(v);
+        }
+    }
+    Coo::from_parts_unchecked(a.nrows, a.ncols, row, col, data)
 }
 
 #[inline]
@@ -67,7 +232,10 @@ pub fn prune_eps(a: &Csr<f64, i64>, eps: f64) -> Csr<f64, i64> {
             let mut k = 0usize;
             let limit4 = row.len() & !3;
             while k < limit4 {
-                let v = f64x4::from([row[k], row[k + 1], row[k + 2], row[k + 3]]);
+                let v = unsafe {
+                    let p = row.as_ptr().add(k).cast::<[f64; 4]>();
+                    f64x4::new(core::ptr::read_unaligned(p))
+                };
                 let arr = v.to_array();
                 if arr[0].abs() > eps {
                     cnt += 1;
@@ -119,7 +287,10 @@ pub fn prune_eps(a: &Csr<f64, i64>, eps: f64) -> Csr<f64, i64> {
         let mut k = 0usize;
         let limit4 = row.len() & !3;
         while k < limit4 {
-            let v = f64x4::from([row[k], row[k + 1], row[k + 2], row[k + 3]]);
+            let v = unsafe {
+                let p = row.as_ptr().add(k).cast::<[f64; 4]>();
+                f64x4::new(core::ptr::read_unaligned(p))
+            };
             let arr = v.to_array();
             if arr[0].abs() > eps {
                 cnt += 1;
