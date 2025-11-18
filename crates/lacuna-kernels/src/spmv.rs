@@ -6,10 +6,19 @@ use crate::util::{
     DenseStripe, SMALL_DIM_LIMIT, SMALL_NNZ_LIMIT, STRIPE_ROWS, StripeAccs, UsizeF64Map,
     i64_to_usize,
 };
-use lacuna_core::{Coo, Csc, Csr, CooNd};
+use lacuna_core::{Coo, CooNd, Csc, Csr};
 use rayon::prelude::*;
 use std::cell::RefCell;
 use thread_local::ThreadLocal;
+
+#[inline]
+fn usize_to_i64(x: usize) -> i64 {
+    debug_assert!(i64::try_from(x).is_ok());
+    #[allow(clippy::cast_possible_wrap, clippy::cast_possible_truncation)]
+    {
+        x as i64
+    }
+}
 
 /// y = A @ x for CSC
 #[allow(clippy::too_many_lines)]
@@ -163,12 +172,9 @@ pub fn spmv_csc_f64_i64(a: &Csc<f64, i64>, x: &[f64]) -> Vec<f64> {
 }
 
 /// ND SpMV along a specific axis: out = tensordot(a, x, axes=[axis])
+#[allow(clippy::doc_markdown)]
 #[must_use]
-pub fn spmv_coond_f64_i64(
-    a: &CooNd<f64, i64>,
-    axis: usize,
-    x: &[f64],
-) -> CooNd<f64, i64> {
+pub fn spmv_coond_f64_i64(a: &CooNd<f64, i64>, axis: usize, x: &[f64]) -> CooNd<f64, i64> {
     let ndim = a.shape.len();
     assert!(axis < ndim, "axis out of bounds");
     assert_eq!(x.len(), a.shape[axis], "x length must equal shape[axis]");
@@ -223,7 +229,7 @@ pub fn spmv_coond_f64_i64(
             let s = strides[m];
             let idx = lin / s;
             lin -= idx * s;
-            out_indices[base + m] = idx as i64;
+            out_indices[base + m] = usize_to_i64(idx);
         }
         out_data.push(v);
     }

@@ -10,7 +10,7 @@
     clippy::many_single_char_names,
     reason = "Math kernels conventionally use short names like i/j/k/s/e/p/v"
 )]
-use lacuna_core::{Coo, Csc, Csr, CooNd};
+use lacuna_core::{Coo, CooNd, Csc, Csr};
 use rayon::prelude::*;
 use wide::f64x4;
 

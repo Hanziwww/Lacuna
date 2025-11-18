@@ -237,3 +237,9 @@ class CSC(SparseMatrix):
             self.shape[0], self.shape[1], self.indptr, self.indices, self.data, False
         )
         return CSC(ti, tj, tv, (tr, tc), check=False)
+
+    def __repr__(self):
+        return f"CSC(shape={self.shape}, nnz={self.nnz}, dtype={self.data.dtype.name})"
+
+    def __str__(self):
+        return self.__repr__()

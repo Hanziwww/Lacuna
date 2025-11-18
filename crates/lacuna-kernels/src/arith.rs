@@ -10,12 +10,17 @@
     clippy::many_single_char_names,
     reason = "Math kernels conventionally use i/j/k/p for indices"
 )]
+#![allow(
+    clippy::needless_range_loop,
+    clippy::comparison_chain,
+    reason = "Index-style loops and simple comparisons are intentional for clarity and performance"
+)]
+use crate::util::UsizeF64Map;
 use core::cmp::Ordering;
-use lacuna_core::{Coo, Csc, Csr, CooNd};
+use lacuna_core::{Coo, CooNd, Csc, Csr};
 use rayon::prelude::*;
 use std::collections::HashMap;
 use wide::f64x4;
-use crate::util::UsizeF64Map;
 
 const SMALL_NNZ_SIMD: usize = 16 * 1024;
 
@@ -45,6 +50,7 @@ fn build_strides_row_major(dims: &[usize]) -> Vec<usize> {
 }
 
 #[must_use]
+#[allow(clippy::too_many_lines)]
 pub fn hadamard_broadcast_coond_f64_i64(
     a: &CooNd<f64, i64>,
     b: &CooNd<f64, i64>,
@@ -66,9 +72,10 @@ pub fn hadamard_broadcast_coond_f64_i64(
     for i in 0..d {
         let ai = ash[i];
         let bi = bsh[i];
-        if ai != bi && ai != 1 && bi != 1 {
-            panic!("shape mismatch: cannot broadcast along dim {i}: {ai} vs {bi}");
-        }
+        assert!(
+            !(ai != bi && ai != 1 && bi != 1),
+            "shape mismatch: cannot broadcast along dim {i}: {ai} vs {bi}"
+        );
         out_shape[i] = ai.max(bi);
     }
     if a.data.is_empty() || b.data.is_empty() {
@@ -101,7 +108,9 @@ pub fn hadamard_broadcast_coond_f64_i64(
             let mut s = 1usize;
             for &idx in inter_dims.iter().rev() {
                 local[idx] = s;
-                s = s.checked_mul(out_shape[idx]).expect("shape product overflow");
+                s = s
+                    .checked_mul(out_shape[idx])
+                    .expect("shape product overflow");
             }
         }
         local
@@ -126,7 +135,9 @@ pub fn hadamard_broadcast_coond_f64_i64(
                 } else {
                     0
                 };
-                unsafe { std::ptr::write(p.add(base_n + i), val); }
+                unsafe {
+                    std::ptr::write(p.add(base_n + i), val);
+                }
             }
         });
     }
@@ -144,7 +155,9 @@ pub fn hadamard_broadcast_coond_f64_i64(
                 } else {
                     0
                 };
-                unsafe { std::ptr::write(p.add(base_n + i), val); }
+                unsafe {
+                    std::ptr::write(p.add(base_n + i), val);
+                }
             }
         });
     }
@@ -179,9 +192,8 @@ pub fn hadamard_broadcast_coond_f64_i64(
         map_b.entry(key).or_default().push(k);
     }
 
-    let mut keys: Vec<usize> = Vec::new();
-    keys.reserve(map_a.len().min(map_b.len()));
-    for (&k, _) in &map_a {
+    let mut keys: Vec<usize> = Vec::with_capacity(map_a.len().min(map_b.len()));
+    for &k in map_a.keys() {
         if map_b.contains_key(&k) {
             keys.push(k);
         }
@@ -208,9 +220,9 @@ pub fn hadamard_broadcast_coond_f64_i64(
                         // Compose output linear index
                         let mut lin: usize = 0;
                         for i in 0..d {
-                            let ia = unsafe { *a_norm.get_unchecked(ba + i) } as usize;
-                            let ib = unsafe { *b_norm.get_unchecked(bb + i) } as usize;
-                            let idx = if ash[i] == 1 { ib } else if bsh[i] == 1 { ia } else { ia };
+                            let ia = i64_to_usize(unsafe { *a_norm.get_unchecked(ba + i) });
+                            let ib = i64_to_usize(unsafe { *b_norm.get_unchecked(bb + i) });
+                            let idx = if ash[i] == 1 { ib } else { ia };
                             lin = lin
                                 .checked_add(idx.checked_mul(out_strides[i]).expect("lin overflow"))
                                 .expect("lin overflow");
@@ -224,7 +236,7 @@ pub fn hadamard_broadcast_coond_f64_i64(
         .collect();
 
     // Merge parts and coalesce duplicates
-    let mut global = UsizeF64Map::with_capacity(parts.iter().map(|p| p.len()).sum());
+    let mut global = UsizeF64Map::with_capacity(parts.iter().map(Vec::len).sum());
     for p in parts {
         for (k, v) in p {
             global.insert_add(k, v);
@@ -242,7 +254,7 @@ pub fn hadamard_broadcast_coond_f64_i64(
             let s = out_strides[i];
             let idx = lin / s;
             lin -= idx * s;
-            out_indices[base + i] = idx as i64;
+            out_indices[base + i] = usize_to_i64(idx);
         }
         out_data.push(v);
     }
@@ -357,7 +369,7 @@ pub fn add_coond_f64_i64(a: &CooNd<f64, i64>, b: &CooNd<f64, i64>) -> CooNd<f64,
             let s = strides[d];
             let idx = lin / s;
             lin -= idx * s;
-            out_indices[base + d] = idx as i64;
+            out_indices[base + d] = usize_to_i64(idx);
         }
         out_data.push(v);
     }
@@ -419,7 +431,7 @@ pub fn sub_coond_f64_i64(a: &CooNd<f64, i64>, b: &CooNd<f64, i64>) -> CooNd<f64,
             let s = strides[d];
             let idx = lin / s;
             lin -= idx * s;
-            out_indices[base + d] = idx as i64;
+            out_indices[base + d] = usize_to_i64(idx);
         }
         out_data.push(v);
     }
@@ -496,7 +508,7 @@ pub fn hadamard_coond_f64_i64(a: &CooNd<f64, i64>, b: &CooNd<f64, i64>) -> CooNd
             let s = strides[d];
             let idx = lin / s;
             lin -= idx * s;
-            out_indices[base + d] = idx as i64;
+            out_indices[base + d] = usize_to_i64(idx);
         }
         out_data.push(v);
     }

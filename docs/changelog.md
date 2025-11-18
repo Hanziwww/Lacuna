@@ -2,7 +2,7 @@
 
 This project adheres to Keep a Changelog and Semantic Versioning.
 
-## [Unreleased]
+## v0.2.0
 
 - Added
 
@@ -21,21 +21,18 @@ This project adheres to Keep a Changelog and Semantic Versioning.
     - `coond_mean_from_parts`, `coond_reduce_mean_axes_from_parts`, `coond_reshape_from_parts`, `coond_hadamard_broadcast_from_parts`.
   - Python `COOND` methods: `mean`, `reduce_mean_axes`, `reshape`, `hadamard_broadcast`.
   - Python tests: added coverage for the above ND ops in `python/tests/test_nd.py`.
-
 - Changed
 
   - Split monolithic `lacuna-py/src/lib.rs` into modules: `csr.rs`, `csc.rs`, `coo.rs`, `functions.rs`.
     - No Python API changes; `lib.rs` now only aggregates and registers symbols.
   - Centralized kernel utilities in `lacuna-kernels/src/util.rs` (constants, helpers, `UsizeF64Map`).
   - Benchmarks now import `lacuna` only from the installed environment (removed local `sys.path` injection).
-
 - Performance
 
   - Replaced `HashMap`-based sparse accumulators with a custom linear-probing `UsizeF64Map` in `reduce.rs` and `spmv.rs`.
   - Parallelized small-dimension reduction paths; SIMD-accelerated stripe merge in column-sum kernels.
   - Parallel linearization in `coond_axes_to_coo_f64_i64` using slice access + unchecked indexing to reduce overhead.
   - Parallel index normalization/accumulation in ND broadcasted Hadamard and parallel linearize/delinearize in ND reshape.
-
 - Fixed
 
   - Balanced unmatched braces in `reduce.rs` causing "unclosed delimiter" compile errors; added missing closers.
@@ -67,4 +64,3 @@ This project adheres to Keep a Changelog and Semantic Versioning.
 - Documentation
 
   - Initial developer guide and project overview.
-

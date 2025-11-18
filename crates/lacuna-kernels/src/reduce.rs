@@ -6,7 +6,7 @@
 use crate::util::{
     SMALL_DIM_LIMIT, SMALL_NNZ_LIMIT, STRIPE, StripeAccs, UsizeF64Map, i64_to_usize,
 };
-use lacuna_core::{Coo, Csc, Csr, CooNd};
+use lacuna_core::{Coo, CooNd, Csc, Csr};
 use rayon::prelude::*;
 use std::cell::RefCell;
 use thread_local::ThreadLocal;
@@ -21,7 +21,17 @@ fn product_checked(dims: &[usize]) -> usize {
     acc
 }
 
+#[inline]
+fn usize_to_i64(x: usize) -> i64 {
+    debug_assert!(i64::try_from(x).is_ok());
+    #[allow(clippy::cast_possible_wrap, clippy::cast_possible_truncation)]
+    {
+        x as i64
+    }
+}
+
 #[must_use]
+#[allow(clippy::cast_precision_loss)]
 pub fn mean_coond_f64(a: &CooNd<f64, i64>) -> f64 {
     if a.shape.is_empty() {
         return 0.0; // conventionally empty shape -> 0 length; avoid div by zero
@@ -34,6 +44,7 @@ pub fn mean_coond_f64(a: &CooNd<f64, i64>) -> f64 {
 }
 
 #[must_use]
+#[allow(clippy::cast_precision_loss)]
 pub fn reduce_mean_axes_coond_f64_i64(a: &CooNd<f64, i64>, axes: &[usize]) -> CooNd<f64, i64> {
     let reduced = reduce_sum_axes_coond_f64_i64(a, axes);
     let mut reduce = vec![false; a.shape.len()];
@@ -141,7 +152,7 @@ pub fn reduce_sum_axes_coond_f64_i64(a: &CooNd<f64, i64>, axes: &[usize]) -> Coo
             let s = strides[m];
             let idx = rem / s;
             rem -= idx * s;
-            out_indices[base + m] = idx as i64;
+            out_indices[base + m] = usize_to_i64(idx);
         }
         out_data.push(sum);
     }

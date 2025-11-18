@@ -513,3 +513,9 @@ class CSR(SparseMatrix):
                     check=False,
                 )
         raise NotImplementedError("astype supports only float64 in v0.1")
+
+    def __repr__(self):
+        return f"CSR(shape={self.shape}, nnz={self.nnz}, dtype={self.data.dtype.name})"
+
+    def __str__(self):
+        return self.__repr__()

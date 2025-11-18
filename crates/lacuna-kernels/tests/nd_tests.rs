@@ -1,3 +1,6 @@
+#![allow(clippy::cast_precision_loss)]
+#![allow(clippy::many_single_char_names)]
+#![allow(clippy::similar_names)]
 use lacuna_core::CooNd;
 use lacuna_kernels::*;
 

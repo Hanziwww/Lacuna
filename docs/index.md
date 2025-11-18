@@ -8,6 +8,7 @@ High-performance sparse arrays/matrices for Python with a pure Rust core.
 
 api
 develop
+tutorials/index
 changelog
 TODO
 ```

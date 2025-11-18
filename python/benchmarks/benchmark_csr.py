@@ -14,8 +14,11 @@ def build_scipy_csr(
     m: int, n: int, density: float, seed: int, dtype: np.dtype
 ) -> Tuple[sp.csr_matrix, int]:
     rs = np.random.RandomState(seed)
-    data_rvs = lambda s: rs.standard_normal(s).astype(dtype)
-    A_coo = sp.random(m, n, density=density, format="coo", random_state=rs, data_rvs=data_rvs)
+    nnz = max(1, int(m * n * float(density)))
+    row = rs.randint(0, m, size=nnz, dtype=np.int64)
+    col = rs.randint(0, n, size=nnz, dtype=np.int64)
+    data = rs.standard_normal(nnz).astype(dtype, copy=False)
+    A_coo = sp.coo_matrix((data, (row, col)), shape=(m, n))
     A_csr = A_coo.tocsr()
     return A_csr, int(A_coo.nnz)
 

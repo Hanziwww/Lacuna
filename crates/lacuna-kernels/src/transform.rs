@@ -1,4 +1,4 @@
-use lacuna_core::{Coo, Csc, Csr, CooNd};
+use lacuna_core::{Coo, CooNd, Csc, Csr};
 use rayon::prelude::*;
 use std::sync::atomic::{AtomicI64, Ordering};
 
@@ -36,10 +36,14 @@ fn build_strides_row_major(dims: &[usize]) -> Vec<usize> {
 }
 
 #[must_use]
+#[allow(clippy::needless_range_loop)]
 pub fn reshape_coond_f64_i64(a: &CooNd<f64, i64>, new_shape: &[usize]) -> CooNd<f64, i64> {
     let old_elems = product_checked(&a.shape);
     let new_elems = product_checked(new_shape);
-    assert_eq!(old_elems, new_elems, "reshape requires same number of elements");
+    assert_eq!(
+        old_elems, new_elems,
+        "reshape requires same number of elements"
+    );
     let ndim_old = a.shape.len();
     let ndim_new = new_shape.len();
     let nnz = a.data.len();
@@ -56,7 +60,9 @@ pub fn reshape_coond_f64_i64(a: &CooNd<f64, i64>, new_shape: &[usize]) -> CooNd<
         for d in 0..ndim_old {
             let idx = i64_to_usize(unsafe { *a.indices.get_unchecked(base_old + d) });
             let s = old_strides[d];
-            lin = lin.checked_add(idx.checked_mul(s).expect("linear index overflow")).expect("linear index overflow");
+            lin = lin
+                .checked_add(idx.checked_mul(s).expect("linear index overflow"))
+                .expect("linear index overflow");
         }
         // de-linearize into new shape
         let base_new = k * ndim_new;
@@ -67,7 +73,7 @@ pub fn reshape_coond_f64_i64(a: &CooNd<f64, i64>, new_shape: &[usize]) -> CooNd<
             rem -= idx * s;
             unsafe {
                 let p = out_ptr as *mut i64;
-                std::ptr::write(p.add(base_new + d), idx as i64);
+                std::ptr::write(p.add(base_new + d), usize_to_i64(idx));
             }
         }
     });
@@ -200,10 +206,10 @@ pub fn transpose_csc_f64_i64(a: &Csc<f64, i64>) -> Csc<f64, i64> {
                     let dst3 = i64_to_usize(unsafe { *pos.as_ptr().add(i3) });
 
                     unsafe {
-                        *pos.as_mut_ptr().add(i0) = (dst0 as i64) + 1;
-                        *pos.as_mut_ptr().add(i1) = (dst1 as i64) + 1;
-                        *pos.as_mut_ptr().add(i2) = (dst2 as i64) + 1;
-                        *pos.as_mut_ptr().add(i3) = (dst3 as i64) + 1;
+                        *pos.as_mut_ptr().add(i0) = usize_to_i64(dst0) + 1;
+                        *pos.as_mut_ptr().add(i1) = usize_to_i64(dst1) + 1;
+                        *pos.as_mut_ptr().add(i2) = usize_to_i64(dst2) + 1;
+                        *pos.as_mut_ptr().add(i3) = usize_to_i64(dst3) + 1;
 
                         let pi = pi_addr as *mut i64;
                         let pv = pv_addr as *mut f64;
@@ -222,7 +228,7 @@ pub fn transpose_csc_f64_i64(a: &Csc<f64, i64>) -> Csc<f64, i64> {
                     let i = i64_to_usize(unsafe { *a.indices.get_unchecked(p) });
                     let dst = i64_to_usize(unsafe { *pos.as_ptr().add(i) });
                     unsafe {
-                        *pos.as_mut_ptr().add(i) = (dst as i64) + 1;
+                        *pos.as_mut_ptr().add(i) = usize_to_i64(dst) + 1;
                         let pi = pi_addr as *mut i64;
                         let pv = pv_addr as *mut f64;
                         std::ptr::write(pi.add(dst), usize_to_i64(j));
@@ -502,10 +508,10 @@ pub fn transpose_f64_i64(a: &Csr<f64, i64>) -> Csr<f64, i64> {
 
                     unsafe {
                         // bump positions
-                        *pos.as_mut_ptr().add(j0) = (dst0 as i64) + 1;
-                        *pos.as_mut_ptr().add(j1) = (dst1 as i64) + 1;
-                        *pos.as_mut_ptr().add(j2) = (dst2 as i64) + 1;
-                        *pos.as_mut_ptr().add(j3) = (dst3 as i64) + 1;
+                        *pos.as_mut_ptr().add(j0) = usize_to_i64(dst0) + 1;
+                        *pos.as_mut_ptr().add(j1) = usize_to_i64(dst1) + 1;
+                        *pos.as_mut_ptr().add(j2) = usize_to_i64(dst2) + 1;
+                        *pos.as_mut_ptr().add(j3) = usize_to_i64(dst3) + 1;
 
                         let pi = pi_addr as *mut i64;
                         let pv = pv_addr as *mut f64;
@@ -524,7 +530,7 @@ pub fn transpose_f64_i64(a: &Csr<f64, i64>) -> Csr<f64, i64> {
                     let j = i64_to_usize(unsafe { *a.indices.get_unchecked(p) });
                     let dst = i64_to_usize(unsafe { *pos.as_ptr().add(j) });
                     unsafe {
-                        *pos.as_mut_ptr().add(j) = (dst as i64) + 1;
+                        *pos.as_mut_ptr().add(j) = usize_to_i64(dst + 1);
                         let pi = pi_addr as *mut i64;
                         let pv = pv_addr as *mut f64;
                         std::ptr::write(pi.add(dst), usize_to_i64(i));

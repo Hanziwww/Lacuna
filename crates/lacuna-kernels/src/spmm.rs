@@ -3,10 +3,19 @@
     reason = "Math kernels conventionally use i/j/k/p for indices"
 )]
 use crate::convert::csr_to_csc_f64_i64;
-use crate::util::{i64_to_usize, UsizeF64Map};
-use lacuna_core::{Coo, Csc, Csr, CooNd};
+use crate::util::{UsizeF64Map, i64_to_usize};
+use lacuna_core::{Coo, CooNd, Csc, Csr};
 use rayon::prelude::*;
 use wide::f64x4;
+
+#[inline]
+fn usize_to_i64(x: usize) -> i64 {
+    debug_assert!(i64::try_from(x).is_ok());
+    #[allow(clippy::cast_possible_truncation, clippy::cast_possible_wrap)]
+    {
+        x as i64
+    }
+}
 
 #[must_use]
 pub fn spmm_auto_f64_i64(a: &Csr<f64, i64>, b: &[f64], k: usize) -> Vec<f64> {
@@ -112,6 +121,12 @@ pub fn spmm_f64_i64(a: &Csr<f64, i64>, b: &[f64], k: usize) -> Vec<f64> {
 }
 
 /// ND SpMM along a specific axis: out = mode-axis product with B (shape[axis] x k)
+#[allow(
+    clippy::doc_markdown,
+    clippy::too_many_lines,
+    clippy::needless_range_loop,
+    reason = "Doc wording and loop style are intentional in this kernel"
+)]
 #[must_use]
 pub fn spmm_coond_f64_i64(
     a: &CooNd<f64, i64>,
@@ -121,7 +136,11 @@ pub fn spmm_coond_f64_i64(
 ) -> CooNd<f64, i64> {
     let ndim = a.shape.len();
     assert!(axis < ndim, "axis out of bounds");
-    assert_eq!(b.len(), a.shape[axis] * k, "B must be shape[axis] x k row-major");
+    assert_eq!(
+        b.len(),
+        a.shape[axis] * k,
+        "B must be shape[axis] x k row-major"
+    );
 
     let nnz = a.data.len();
     let mut out_shape = a.shape.clone();
@@ -172,19 +191,31 @@ pub fn spmm_coond_f64_i64(
             }
             if v1 != 0.0 {
                 let key = lin_base
-                    .checked_add((c + 1).checked_mul(stride_axis).expect("linear index overflow"))
+                    .checked_add(
+                        (c + 1)
+                            .checked_mul(stride_axis)
+                            .expect("linear index overflow"),
+                    )
                     .expect("linear index overflow");
                 acc.insert_add(key, v1);
             }
             if v2 != 0.0 {
                 let key = lin_base
-                    .checked_add((c + 2).checked_mul(stride_axis).expect("linear index overflow"))
+                    .checked_add(
+                        (c + 2)
+                            .checked_mul(stride_axis)
+                            .expect("linear index overflow"),
+                    )
                     .expect("linear index overflow");
                 acc.insert_add(key, v2);
             }
             if v3 != 0.0 {
                 let key = lin_base
-                    .checked_add((c + 3).checked_mul(stride_axis).expect("linear index overflow"))
+                    .checked_add(
+                        (c + 3)
+                            .checked_mul(stride_axis)
+                            .expect("linear index overflow"),
+                    )
                     .expect("linear index overflow");
                 acc.insert_add(key, v3);
             }
@@ -219,7 +250,7 @@ pub fn spmm_coond_f64_i64(
             let s = strides[d];
             let idx = lin / s;
             lin -= idx * s;
-            out_indices[base + d] = idx as i64;
+            out_indices[base + d] = usize_to_i64(idx);
         }
         out_data.push(v);
     }

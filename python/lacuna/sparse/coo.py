@@ -203,3 +203,9 @@ class COO(SparseArray):
             self.shape[0], self.shape[1], self.row, self.col, self.data, False
         )
         return COO(rr, cc, vv, (nr, nc), check=False)
+
+    def __repr__(self):
+        return f"COO(shape={self.shape}, nnz={self.nnz}, dtype={self.data.dtype.name})"
+
+    def __str__(self):
+        return self.__repr__()

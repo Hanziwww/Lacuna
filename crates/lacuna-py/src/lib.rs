@@ -46,20 +46,53 @@ fn _core(m: &Bound<PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(crate::functions::sum_from_parts, m)?)?;
     m.add_function(wrap_pyfunction!(crate::functions::row_sums_from_parts, m)?)?;
     m.add_function(wrap_pyfunction!(crate::functions::col_sums_from_parts, m)?)?;
-    m.add_function(wrap_pyfunction!(crate::functions::coo_to_csc_from_parts, m)?)?;
+    m.add_function(wrap_pyfunction!(
+        crate::functions::coo_to_csc_from_parts,
+        m
+    )?)?;
     // ND COO -> CSR/CSC conversions
-    m.add_function(wrap_pyfunction!(crate::functions::coond_mode_to_csr_from_parts, m)?)?;
-    m.add_function(wrap_pyfunction!(crate::functions::coond_mode_to_csc_from_parts, m)?)?;
-    m.add_function(wrap_pyfunction!(crate::functions::coond_axes_to_csr_from_parts, m)?)?;
-    m.add_function(wrap_pyfunction!(crate::functions::coond_axes_to_csc_from_parts, m)?)?;
+    m.add_function(wrap_pyfunction!(
+        crate::functions::coond_mode_to_csr_from_parts,
+        m
+    )?)?;
+    m.add_function(wrap_pyfunction!(
+        crate::functions::coond_mode_to_csc_from_parts,
+        m
+    )?)?;
+    m.add_function(wrap_pyfunction!(
+        crate::functions::coond_axes_to_csr_from_parts,
+        m
+    )?)?;
+    m.add_function(wrap_pyfunction!(
+        crate::functions::coond_axes_to_csc_from_parts,
+        m
+    )?)?;
     // ND COO ops
     m.add_function(wrap_pyfunction!(crate::functions::coond_sum_from_parts, m)?)?;
-    m.add_function(wrap_pyfunction!(crate::functions::coond_mean_from_parts, m)?)?;
-    m.add_function(wrap_pyfunction!(crate::functions::coond_reduce_sum_axes_from_parts, m)?)?;
-    m.add_function(wrap_pyfunction!(crate::functions::coond_reduce_mean_axes_from_parts, m)?)?;
-    m.add_function(wrap_pyfunction!(crate::functions::coond_permute_axes_from_parts, m)?)?;
-    m.add_function(wrap_pyfunction!(crate::functions::coond_reshape_from_parts, m)?)?;
-    m.add_function(wrap_pyfunction!(crate::functions::coond_hadamard_broadcast_from_parts, m)?)?;
+    m.add_function(wrap_pyfunction!(
+        crate::functions::coond_mean_from_parts,
+        m
+    )?)?;
+    m.add_function(wrap_pyfunction!(
+        crate::functions::coond_reduce_sum_axes_from_parts,
+        m
+    )?)?;
+    m.add_function(wrap_pyfunction!(
+        crate::functions::coond_reduce_mean_axes_from_parts,
+        m
+    )?)?;
+    m.add_function(wrap_pyfunction!(
+        crate::functions::coond_permute_axes_from_parts,
+        m
+    )?)?;
+    m.add_function(wrap_pyfunction!(
+        crate::functions::coond_reshape_from_parts,
+        m
+    )?)?;
+    m.add_function(wrap_pyfunction!(
+        crate::functions::coond_hadamard_broadcast_from_parts,
+        m
+    )?)?;
     m.add_function(wrap_pyfunction!(crate::functions::transpose_from_parts, m)?)?;
     m.add_function(wrap_pyfunction!(
         crate::functions::transpose_csc_from_parts,

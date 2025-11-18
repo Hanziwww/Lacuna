@@ -2,8 +2,8 @@
     clippy::many_single_char_names,
     reason = "Math kernels conventionally use i/j/k/p for indices"
 )]
-use lacuna_core::{Coo, Csc, Csr, CooNd};
 use crate::util::SMALL_NNZ_LIMIT;
+use lacuna_core::{Coo, CooNd, Csc, Csr};
 use rayon::prelude::*;
 use std::sync::atomic::{AtomicI64, Ordering};
 
@@ -265,9 +265,7 @@ pub fn coo_to_csc_f64_i64(a: &Coo<f64, i64>) -> Csc<f64, i64> {
 fn product_checked(dims: &[usize]) -> usize {
     let mut acc: usize = 1;
     for &x in dims {
-        acc = acc
-            .checked_mul(x)
-            .expect("shape product overflow");
+        acc = acc.checked_mul(x).expect("shape product overflow");
     }
     acc
 }
@@ -298,8 +296,8 @@ fn coond_axes_to_coo_f64_i64(a: &CooNd<f64, i64>, row_axes: &[usize]) -> Coo<f64
         used[ax] = true;
     }
     let mut col_axes: Vec<usize> = Vec::with_capacity(ndim - row_axes.len());
-    for d in 0..ndim {
-        if !used[d] {
+    for (d, &flag) in used.iter().enumerate().take(ndim) {
+        if !flag {
             col_axes.push(d);
         }
     }
@@ -324,7 +322,11 @@ fn coond_axes_to_coo_f64_i64(a: &CooNd<f64, i64>, row_axes: &[usize]) -> Coo<f64
             let mut r: usize = 0;
             for (m, &d) in row_axes.iter().enumerate() {
                 let idx = i64_to_usize(unsafe { *a.indices.get_unchecked(base + d) });
-                let s = if row_strides.is_empty() { 0 } else { row_strides[m] };
+                let s = if row_strides.is_empty() {
+                    0
+                } else {
+                    row_strides[m]
+                };
                 r = r
                     .checked_add(idx.checked_mul(s).expect("linear index overflow"))
                     .expect("linear index overflow");
@@ -332,7 +334,11 @@ fn coond_axes_to_coo_f64_i64(a: &CooNd<f64, i64>, row_axes: &[usize]) -> Coo<f64
             let mut c2: usize = 0;
             for (m, &d) in col_axes.iter().enumerate() {
                 let idx = i64_to_usize(unsafe { *a.indices.get_unchecked(base + d) });
-                let s = if col_strides.is_empty() { 0 } else { col_strides[m] };
+                let s = if col_strides.is_empty() {
+                    0
+                } else {
+                    col_strides[m]
+                };
                 c2 = c2
                     .checked_add(idx.checked_mul(s).expect("linear index overflow"))
                     .expect("linear index overflow");
@@ -349,7 +355,11 @@ fn coond_axes_to_coo_f64_i64(a: &CooNd<f64, i64>, row_axes: &[usize]) -> Coo<f64
             let mut r: usize = 0;
             for (m, &d) in row_axes.iter().enumerate() {
                 let idx = i64_to_usize(unsafe { *indices.get_unchecked(base + d) });
-                let s = if row_strides.is_empty() { 0 } else { row_strides[m] };
+                let s = if row_strides.is_empty() {
+                    0
+                } else {
+                    row_strides[m]
+                };
                 r = r
                     .checked_add(idx.checked_mul(s).expect("linear index overflow"))
                     .expect("linear index overflow");
@@ -357,7 +367,11 @@ fn coond_axes_to_coo_f64_i64(a: &CooNd<f64, i64>, row_axes: &[usize]) -> Coo<f64
             let mut c2: usize = 0;
             for (m, &d) in col_axes.iter().enumerate() {
                 let idx = i64_to_usize(unsafe { *indices.get_unchecked(base + d) });
-                let s = if col_strides.is_empty() { 0 } else { col_strides[m] };
+                let s = if col_strides.is_empty() {
+                    0
+                } else {
+                    col_strides[m]
+                };
                 c2 = c2
                     .checked_add(idx.checked_mul(s).expect("linear index overflow"))
                     .expect("linear index overflow");

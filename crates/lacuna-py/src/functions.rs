@@ -3,16 +3,16 @@ use numpy::ndarray::Array2;
 use numpy::{IntoPyArray, PyArray1, PyArray2, PyReadonlyArray1, PyReadonlyArray2};
 use pyo3::prelude::*;
 
-use lacuna_core::{Coo, Csc, Csr, CooNd};
+use lacuna_core::{Coo, CooNd, Csc, Csr};
 use lacuna_kernels::{
-    add_csr_f64_i64, col_sums_f64, coo_to_csc_f64_i64, coo_to_csr_f64_i64, csc_to_coo_f64_i64,
-    csc_to_csr_f64_i64, csr_to_coo_f64_i64, csr_to_csc_f64_i64, eliminate_zeros,
-    coond_mode_to_csr_f64_i64, coond_mode_to_csc_f64_i64, coond_axes_to_csr_f64_i64,
-    coond_axes_to_csc_f64_i64, permute_axes_coond_f64_i64, reduce_sum_axes_coond_f64_i64,
-    reduce_mean_axes_coond_f64_i64, hadamard_broadcast_coond_f64_i64, reshape_coond_f64_i64,
-    hadamard_csr_f64_i64, mul_scalar_f64, prune_eps, row_sums_f64, spmm_f64_i64, spmv_f64_i64,
-    sub_csr_f64_i64, sum_coond_f64, mean_coond_f64, sum_f64, transpose_coo_f64_i64,
-    transpose_csc_f64_i64, transpose_f64_i64,
+    add_csr_f64_i64, col_sums_f64, coo_to_csc_f64_i64, coo_to_csr_f64_i64,
+    coond_axes_to_csc_f64_i64, coond_axes_to_csr_f64_i64, coond_mode_to_csc_f64_i64,
+    coond_mode_to_csr_f64_i64, csc_to_coo_f64_i64, csc_to_csr_f64_i64, csr_to_coo_f64_i64,
+    csr_to_csc_f64_i64, eliminate_zeros, hadamard_broadcast_coond_f64_i64, hadamard_csr_f64_i64,
+    mean_coond_f64, mul_scalar_f64, permute_axes_coond_f64_i64, prune_eps,
+    reduce_mean_axes_coond_f64_i64, reduce_sum_axes_coond_f64_i64, reshape_coond_f64_i64,
+    row_sums_f64, spmm_f64_i64, spmv_f64_i64, sub_csr_f64_i64, sum_coond_f64, sum_f64,
+    transpose_coo_f64_i64, transpose_csc_f64_i64, transpose_f64_i64,
 };
 
 #[pyfunction]
@@ -145,9 +145,11 @@ pub(crate) fn coond_permute_axes_from_parts<'py>(
                 "perm must be non-negative",
             ));
         }
-        perm_us.push(usize::try_from(p).map_err(|_| {
-            PyErr::new::<pyo3::exceptions::PyValueError, _>("perm value overflow")
-        })?);
+        perm_us.push(
+            usize::try_from(p).map_err(|_| {
+                PyErr::new::<pyo3::exceptions::PyValueError, _>("perm value overflow")
+            })?,
+        );
     }
     let a = CooNd::from_parts(
         shape_us,
@@ -157,7 +159,13 @@ pub(crate) fn coond_permute_axes_from_parts<'py>(
     )
     .map_err(PyErr::new::<pyo3::exceptions::PyValueError, _>)?;
     let p = py.detach(|| permute_axes_coond_f64_i64(&a, &perm_us));
-    let new_shape_i64: Vec<i64> = p.shape.iter().map(|&x| x as i64).collect();
+    let new_shape_i64: Vec<i64> = p
+        .shape
+        .iter()
+        .copied()
+        .map(i64::try_from)
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|_| PyErr::new::<pyo3::exceptions::PyValueError, _>("shape value overflow"))?;
     Ok((
         PyArray1::from_vec(py, new_shape_i64),
         PyArray1::from_vec(py, p.indices),
@@ -198,9 +206,11 @@ pub(crate) fn coond_reduce_sum_axes_from_parts<'py>(
                 "axes must be non-negative",
             ));
         }
-        axes_us.push(usize::try_from(ax).map_err(|_| {
-            PyErr::new::<pyo3::exceptions::PyValueError, _>("axes value overflow")
-        })?);
+        axes_us.push(
+            usize::try_from(ax).map_err(|_| {
+                PyErr::new::<pyo3::exceptions::PyValueError, _>("axes value overflow")
+            })?,
+        );
     }
     let a = CooNd::from_parts(
         shape_us,
@@ -210,7 +220,13 @@ pub(crate) fn coond_reduce_sum_axes_from_parts<'py>(
     )
     .map_err(PyErr::new::<pyo3::exceptions::PyValueError, _>)?;
     let r = py.detach(|| reduce_sum_axes_coond_f64_i64(&a, &axes_us));
-    let new_shape_i64: Vec<i64> = r.shape.iter().map(|&x| x as i64).collect();
+    let new_shape_i64: Vec<i64> = r
+        .shape
+        .iter()
+        .copied()
+        .map(i64::try_from)
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|_| PyErr::new::<pyo3::exceptions::PyValueError, _>("shape value overflow"))?;
     Ok((
         PyArray1::from_vec(py, new_shape_i64),
         PyArray1::from_vec(py, r.indices),
@@ -251,9 +267,11 @@ pub(crate) fn coond_reduce_mean_axes_from_parts<'py>(
                 "axes must be non-negative",
             ));
         }
-        axes_us.push(usize::try_from(ax).map_err(|_| {
-            PyErr::new::<pyo3::exceptions::PyValueError, _>("axes value overflow")
-        })?);
+        axes_us.push(
+            usize::try_from(ax).map_err(|_| {
+                PyErr::new::<pyo3::exceptions::PyValueError, _>("axes value overflow")
+            })?,
+        );
     }
     let a = CooNd::from_parts(
         shape_us,
@@ -263,7 +281,13 @@ pub(crate) fn coond_reduce_mean_axes_from_parts<'py>(
     )
     .map_err(PyErr::new::<pyo3::exceptions::PyValueError, _>)?;
     let r = py.detach(|| reduce_mean_axes_coond_f64_i64(&a, &axes_us));
-    let new_shape_i64: Vec<i64> = r.shape.iter().map(|&x| x as i64).collect();
+    let new_shape_i64: Vec<i64> = r
+        .shape
+        .iter()
+        .copied()
+        .map(i64::try_from)
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|_| PyErr::new::<pyo3::exceptions::PyValueError, _>("shape value overflow"))?;
     Ok((
         PyArray1::from_vec(py, new_shape_i64),
         PyArray1::from_vec(py, r.indices),
@@ -316,7 +340,13 @@ pub(crate) fn coond_reshape_from_parts<'py>(
     )
     .map_err(PyErr::new::<pyo3::exceptions::PyValueError, _>)?;
     let r = py.detach(|| reshape_coond_f64_i64(&a, &new_us));
-    let new_shape_i64: Vec<i64> = r.shape.iter().map(|&x| x as i64).collect();
+    let new_shape_i64: Vec<i64> = r
+        .shape
+        .iter()
+        .copied()
+        .map(i64::try_from)
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|_| PyErr::new::<pyo3::exceptions::PyValueError, _>("shape value overflow"))?;
     Ok((
         PyArray1::from_vec(py, new_shape_i64),
         PyArray1::from_vec(py, r.indices),
@@ -343,24 +373,48 @@ pub(crate) fn coond_hadamard_broadcast_from_parts<'py>(
     let mut ash: Vec<usize> = Vec::with_capacity(ash_i64.len());
     for &s in &ash_i64 {
         if s < 0 {
-            return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>("a_shape must be non-negative"));
+            return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
+                "a_shape must be non-negative",
+            ));
         }
-        ash.push(usize::try_from(s).map_err(|_| PyErr::new::<pyo3::exceptions::PyValueError, _>("a_shape value overflow"))?);
+        ash.push(usize::try_from(s).map_err(|_| {
+            PyErr::new::<pyo3::exceptions::PyValueError, _>("a_shape value overflow")
+        })?);
     }
     let bsh_i64 = b_shape.as_slice()?.to_vec();
     let mut bsh: Vec<usize> = Vec::with_capacity(bsh_i64.len());
     for &s in &bsh_i64 {
         if s < 0 {
-            return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>("b_shape must be non-negative"));
+            return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
+                "b_shape must be non-negative",
+            ));
         }
-        bsh.push(usize::try_from(s).map_err(|_| PyErr::new::<pyo3::exceptions::PyValueError, _>("b_shape value overflow"))?);
+        bsh.push(usize::try_from(s).map_err(|_| {
+            PyErr::new::<pyo3::exceptions::PyValueError, _>("b_shape value overflow")
+        })?);
     }
-    let a = CooNd::from_parts(ash, a_indices.as_slice()?.to_vec(), a_data.as_slice()?.to_vec(), check)
-        .map_err(PyErr::new::<pyo3::exceptions::PyValueError, _>)?;
-    let b = CooNd::from_parts(bsh, b_indices.as_slice()?.to_vec(), b_data.as_slice()?.to_vec(), check)
-        .map_err(PyErr::new::<pyo3::exceptions::PyValueError, _>)?;
+    let a = CooNd::from_parts(
+        ash,
+        a_indices.as_slice()?.to_vec(),
+        a_data.as_slice()?.to_vec(),
+        check,
+    )
+    .map_err(PyErr::new::<pyo3::exceptions::PyValueError, _>)?;
+    let b = CooNd::from_parts(
+        bsh,
+        b_indices.as_slice()?.to_vec(),
+        b_data.as_slice()?.to_vec(),
+        check,
+    )
+    .map_err(PyErr::new::<pyo3::exceptions::PyValueError, _>)?;
     let r = py.detach(|| hadamard_broadcast_coond_f64_i64(&a, &b));
-    let out_shape_i64: Vec<i64> = r.shape.iter().map(|&x| x as i64).collect();
+    let out_shape_i64: Vec<i64> = r
+        .shape
+        .iter()
+        .copied()
+        .map(i64::try_from)
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|_| PyErr::new::<pyo3::exceptions::PyValueError, _>("shape value overflow"))?;
     Ok((
         PyArray1::from_vec(py, out_shape_i64),
         PyArray1::from_vec(py, r.indices),
@@ -619,7 +673,7 @@ pub(crate) fn transpose_coo_from_parts<'py>(
     usize,
     usize,
 )> {
-    let coo = Coo::from_parts(
+    let coo_mat = Coo::from_parts(
         nrows,
         ncols,
         row.as_slice()?.to_vec(),
@@ -628,7 +682,7 @@ pub(crate) fn transpose_coo_from_parts<'py>(
         check,
     )
     .map_err(|e| PyErr::new::<pyo3::exceptions::PyValueError, _>(e))?;
-    let t = py.detach(|| transpose_coo_f64_i64(&coo));
+    let t = py.detach(|| transpose_coo_f64_i64(&coo_mat));
     Ok((
         PyArray1::from_vec(py, t.row),
         PyArray1::from_vec(py, t.col),

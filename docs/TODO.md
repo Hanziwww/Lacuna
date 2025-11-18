@@ -23,7 +23,6 @@ Project-wide checklist derived from PLAN.md. Items are grouped by milestones; al
   - [X] Conversions: CSR <-> COO <-> CSC
   - [X] Arithmetic: A + B, Hadamard A.multiply(B)
   - [ ] IO: Matrix Market (.mtx) and NPZ save/load
-  - [ ] Dtype/index casting
 - **M3: Performance and Stability**
 
   - [ ] Blocked/tiling strategies; cache/NUMA tuning
