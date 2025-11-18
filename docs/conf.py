@@ -45,3 +45,8 @@ source_suffix = {
     ".rst": "restructuredtext",
     ".md": "markdown",
 }
+html_sidebars = {
+    "TODO": [],
+    "changelog": [],
+    "develop": [],
+}

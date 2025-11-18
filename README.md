@@ -16,7 +16,7 @@
   <a href="https://numpy.org/"><img src="https://img.shields.io/badge/NumPy-compatible-013243?logo=numpy&logoColor=white" alt="NumPy compatible" /></a>
 </p>
 
-> ⚠ Status: Work in progress. APIs and performance characteristics may change without notice. **Contact me if you'd like to join the development**!
+> ⚠ Status: Work in progress. APIs and performance characteristics may change without notice. **Contact me if you'd like to join the development**! View [docs](https://lacuna.hanziwww.me).
 
 ## Table of Contents
 
