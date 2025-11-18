@@ -9,4 +9,5 @@ Auto-generated documentation from docstrings for top-level modules.
 api/lacuna
 api/lacuna.io
 api/lacuna.sparse
+api/modules
 ```
