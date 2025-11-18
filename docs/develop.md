@@ -1,3 +1,6 @@
+---
+html_theme.sidebar_primary.remove: true
+---
 # Development Guide
 
 ## Prerequisites

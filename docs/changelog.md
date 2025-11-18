@@ -1,3 +1,6 @@
+---
+html_theme.sidebar_primary.remove: true
+---
 # Changelog
 
 This project adheres to Keep a Changelog and Semantic Versioning.

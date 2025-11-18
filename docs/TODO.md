@@ -1,3 +1,6 @@
+---
+html_theme.sidebar_primary.remove: true
+---
 # TODO
 
 Project-wide checklist derived from PLAN.md. Items are grouped by milestones; all are initially unchecked.
