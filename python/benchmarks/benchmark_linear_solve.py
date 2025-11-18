@@ -59,7 +59,13 @@ def build_pydata_sparse_from_scipy(A_scipy: Any) -> Optional[Any]:
             return None
 
 
-def cg_solve(matvec: Callable[[np.ndarray], np.ndarray], b: np.ndarray, x0: Optional[np.ndarray], tol: float, maxiter: int) -> Tuple[np.ndarray, int, float]:
+def cg_solve(
+    matvec: Callable[[np.ndarray], np.ndarray],
+    b: np.ndarray,
+    x0: Optional[np.ndarray],
+    tol: float,
+    maxiter: int,
+) -> Tuple[np.ndarray, int, float]:
     n = b.size
     x = np.zeros_like(b) if x0 is None else np.array(x0, dtype=np.float64, copy=True)
     r = b - matvec(x)
@@ -77,13 +83,13 @@ def cg_solve(matvec: Callable[[np.ndarray], np.ndarray], b: np.ndarray, x0: Opti
         x += alpha * p
         r -= alpha * Ap
         rr_new = float(np.dot(r, r))
-        if (rr_new ** 0.5) / nb <= tol:
+        if (rr_new**0.5) / nb <= tol:
             rr = rr_new
             break
         beta = rr_new / rr
         p = r + beta * p
         rr = rr_new
-    rel_res = (rr ** 0.5) / nb
+    rel_res = (rr**0.5) / nb
     return x, k, rel_res
 
 
@@ -156,24 +162,38 @@ def run_sweep(args) -> None:
                 return None
 
         if not args.no_scipy:
-            times = time_op(lambda: cg_solve(matvec_scipy, b, None, args.tol, args.maxiter), args.warmup, args.repeat)
+            times = time_op(
+                lambda: cg_solve(matvec_scipy, b, None, args.tol, args.maxiter),
+                args.warmup,
+                args.repeat,
+            )
             lab = "scipy:cg(common)"
             series.setdefault(lab, []).append(float(np.min(times) * 1e3))
 
         if not args.no_sparse and A_sparse is not None:
-            times = time_op(lambda: cg_solve(lambda v: matvec_sparse(v), b, None, args.tol, args.maxiter), args.warmup, args.repeat)
+            times = time_op(
+                lambda: cg_solve(lambda v: matvec_sparse(v), b, None, args.tol, args.maxiter),
+                args.warmup,
+                args.repeat,
+            )
             lab = "pydata.sparse:cg(common)"
             series.setdefault(lab, []).append(float(np.min(times) * 1e3))
 
         if not args.no_lacuna and A_lacuna is not None:
-            times = time_op(lambda: cg_solve(lambda v: matvec_lacuna(v), b, None, args.tol, args.maxiter), args.warmup, args.repeat)
+            times = time_op(
+                lambda: cg_solve(lambda v: matvec_lacuna(v), b, None, args.tol, args.maxiter),
+                args.warmup,
+                args.repeat,
+            )
             lab = "lacuna:cg(common)"
             series.setdefault(lab, []).append(float(np.min(times) * 1e3))
 
         if args.scipy_native_cg and not args.no_scipy and spla is not None:
+
             def solve_scipy_native():
                 x, info = spla.cg(A_scipy, b, tol=args.tol, maxiter=args.maxiter)
                 return x
+
             times = time_op(solve_scipy_native, args.warmup, args.repeat)
             lab = "scipy:cg(native)"
             series.setdefault(lab, []).append(float(np.min(times) * 1e3))
@@ -193,7 +213,9 @@ def run_sweep(args) -> None:
     plt.yscale("log")
     plt.xlabel("Problem size n")
     plt.ylabel("Time (ms) per solve (min over repeats)")
-    plt.title(f"CG solve time vs n (SPD, density={args.density}, tol={args.tol}, maxiter={args.maxiter})")
+    plt.title(
+        f"CG solve time vs n (SPD, density={args.density}, tol={args.tol}, maxiter={args.maxiter})"
+    )
     plt.legend()
     plt.grid(True, which="both", ls=":", alpha=0.5)
     out = getattr(args, "plot_file", "linear_solve_cg_times.png")
@@ -203,10 +225,12 @@ def run_sweep(args) -> None:
 
 
 def main():
-    p = argparse.ArgumentParser(description="Linear solve (CG) benchmark across SciPy, PyData/Sparse, Lacuna")
+    p = argparse.ArgumentParser(
+        description="Linear solve (CG) benchmark across SciPy, PyData/Sparse, Lacuna"
+    )
     p.add_argument("--n", type=int, default=4096)
     p.add_argument("--density", type=float, default=2e-4)
-    p.add_argument("--dtype", type=str, default="float64", choices=["float32", "float64"]) 
+    p.add_argument("--dtype", type=str, default="float64", choices=["float32", "float64"])
     p.add_argument("--tol", type=float, default=1e-8)
     p.add_argument("--maxiter", type=int, default=1000)
     p.add_argument("--warmup", type=int, default=1)
@@ -215,7 +239,9 @@ def main():
     p.add_argument("--no_scipy", action="store_true")
     p.add_argument("--no_sparse", action="store_true")
     p.add_argument("--no_lacuna", action="store_true")
-    p.add_argument("--scipy_native_cg", action="store_true", help="Also time scipy.sparse.linalg.cg")
+    p.add_argument(
+        "--scipy_native_cg", action="store_true", help="Also time scipy.sparse.linalg.cg"
+    )
     p.add_argument("--sweep", action="store_true")
     p.add_argument("--n_min", type=int, default=1000)
     p.add_argument("--n_max", type=int, default=100000)
@@ -262,7 +288,11 @@ def main():
             return None
 
     if not args.no_scipy:
-        times = time_op(lambda: cg_solve(matvec_scipy, b, None, args.tol, args.maxiter), args.warmup, args.repeat)
+        times = time_op(
+            lambda: cg_solve(matvec_scipy, b, None, args.tol, args.maxiter),
+            args.warmup,
+            args.repeat,
+        )
         stats = summarize("scipy:cg(common)", times)
         if stats:
             results.append(stats)
@@ -270,7 +300,11 @@ def main():
         notes.append(f"scipy: iters={iters} rel_resid={rel:.2e}")
 
     if not args.no_sparse and A_sparse is not None:
-        times = time_op(lambda: cg_solve(lambda v: matvec_sparse(v), b, None, args.tol, args.maxiter), args.warmup, args.repeat)
+        times = time_op(
+            lambda: cg_solve(lambda v: matvec_sparse(v), b, None, args.tol, args.maxiter),
+            args.warmup,
+            args.repeat,
+        )
         stats = summarize("pydata.sparse:cg(common)", times)
         if stats:
             results.append(stats)
@@ -278,7 +312,11 @@ def main():
         notes.append(f"pydata.sparse: iters={iters} rel_resid={rel:.2e}")
 
     if not args.no_lacuna and A_lacuna is not None:
-        times = time_op(lambda: cg_solve(lambda v: matvec_lacuna(v), b, None, args.tol, args.maxiter), args.warmup, args.repeat)
+        times = time_op(
+            lambda: cg_solve(lambda v: matvec_lacuna(v), b, None, args.tol, args.maxiter),
+            args.warmup,
+            args.repeat,
+        )
         stats = summarize("lacuna:cg(common)", times)
         if stats:
             results.append(stats)
@@ -286,9 +324,11 @@ def main():
         notes.append(f"lacuna: iters={iters} rel_resid={rel:.2e}")
 
     if args.scipy_native_cg and not args.no_scipy and spla is not None:
+
         def solve_scipy_native():
             x, info = spla.cg(A_scipy, b, tol=args.tol, maxiter=args.maxiter)
             return x
+
         times = time_op(solve_scipy_native, args.warmup, args.repeat)
         stats = summarize("scipy:cg(native)", times)
         if stats:
@@ -299,11 +339,15 @@ def main():
         iters = -1 if info is None else (int(info) if isinstance(info, (int, np.integer)) else -1)
         notes.append(f"scipy(native): iters={iters} rel_resid={rel:.2e}")
 
-    print(f"Linear Solve (CG) Benchmark: n={args.n} density={args.density} dtype={args.dtype} nnz={nnz} tol={args.tol} maxiter={args.maxiter}")
+    print(
+        f"Linear Solve (CG) Benchmark: n={args.n} density={args.density} dtype={args.dtype} nnz={nnz} tol={args.tol} maxiter={args.maxiter}"
+    )
     for r in results:
         if not r:
             continue
-        print(f"{r['name']:>24}: min {r['min_ms']:.3f} ms | median {r['median_ms']:.3f} ms | mean {r['mean_ms']:.3f} ms")
+        print(
+            f"{r['name']:>24}: min {r['min_ms']:.3f} ms | median {r['median_ms']:.3f} ms | mean {r['mean_ms']:.3f} ms"
+        )
     for line in notes:
         print("  - " + line)
 

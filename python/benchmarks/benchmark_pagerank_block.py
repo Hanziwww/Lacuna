@@ -12,6 +12,7 @@ except Exception:
 
 # ---------- Graph builder (row-stochastic) ----------
 
+
 def build_row_stochastic_csr(n: int, density: float, seed: int, dtype: np.dtype) -> Any:
     """Build a random row-stochastic transition matrix P (CSR, shape n x n).
 
@@ -46,6 +47,7 @@ def build_row_stochastic_csr(n: int, density: float, seed: int, dtype: np.dtype)
 
 # ---------- Backends: SpMM wrappers ----------
 
+
 def spmm_scipy(P: Any, X: np.ndarray) -> np.ndarray:
     return np.asarray(P @ X, dtype=np.float64)
 
@@ -69,7 +71,14 @@ def spmm_lacuna(P_lacuna: Any, X: np.ndarray) -> np.ndarray:
 
 # ---------- Block PageRank ----------
 
-def block_pagerank(matmul: Callable[[np.ndarray], np.ndarray], X0: np.ndarray, alpha: float, tol: float, maxiter: int) -> Tuple[np.ndarray, int, float]:
+
+def block_pagerank(
+    matmul: Callable[[np.ndarray], np.ndarray],
+    X0: np.ndarray,
+    alpha: float,
+    tol: float,
+    maxiter: int,
+) -> Tuple[np.ndarray, int, float]:
     X = X0.copy()
     nb = float(np.linalg.norm(X0))
     nb = nb if nb > 0 else 1.0
@@ -82,7 +91,9 @@ def block_pagerank(matmul: Callable[[np.ndarray], np.ndarray], X0: np.ndarray, a
         colsum[colsum == 0.0] = 1.0
         X_new = X_new / colsum
         r = X_new - X
-        rel = float(np.linalg.norm(r) / (np.linalg.norm(X_new) if np.linalg.norm(X_new) > 0 else 1.0))
+        rel = float(
+            np.linalg.norm(r) / (np.linalg.norm(X_new) if np.linalg.norm(X_new) > 0 else 1.0)
+        )
         X = X_new
         if rel <= tol:
             break
@@ -90,6 +101,7 @@ def block_pagerank(matmul: Callable[[np.ndarray], np.ndarray], X0: np.ndarray, a
 
 
 # ---------- Timing helpers ----------
+
 
 def time_op(fn: Callable[[], Any], warmup: int, repeat: int) -> List[float]:
     for _ in range(warmup):
@@ -116,6 +128,7 @@ def summarize(name: str, times: List[float]) -> Optional[Dict[str, float]]:
 
 
 # ---------- Sweep/plot helpers ----------
+
 
 def sizes_from_args(args) -> List[int]:
     if not getattr(args, "sweep", False):
@@ -151,25 +164,58 @@ def run_sweep(args) -> None:
             from lacuna.sparse.csr import CSR
         except Exception:
             CSR = None
-        P_lacuna = None if (args.no_lacuna or CSR is None) else CSR(P_scipy.indptr, P_scipy.indices, P_scipy.data.astype(np.float64, copy=False), P_scipy.shape, check=False)
+        P_lacuna = (
+            None
+            if (args.no_lacuna or CSR is None)
+            else CSR(
+                P_scipy.indptr,
+                P_scipy.indices,
+                P_scipy.data.astype(np.float64, copy=False),
+                P_scipy.shape,
+                check=False,
+            )
+        )
         P_sparse = None
         if not args.no_sparse:
             try:
                 import sparse as psparse  # noqa: F401
+
                 P_sparse = psparse.COO.from_scipy_sparse(P_scipy.tocoo())
             except Exception:
                 P_sparse = None
 
         if not args.no_scipy:
-            times = time_op(lambda: block_pagerank(lambda X: spmm_scipy(P_scipy, X), X0, args.alpha, args.tol, args.maxiter), args.warmup, args.repeat)
+            times = time_op(
+                lambda: block_pagerank(
+                    lambda X: spmm_scipy(P_scipy, X), X0, args.alpha, args.tol, args.maxiter
+                ),
+                args.warmup,
+                args.repeat,
+            )
             series.setdefault("scipy:pagerank", []).append(float(np.min(times) * 1e3))
 
         if not args.no_sparse and P_sparse is not None:
-            times = time_op(lambda: block_pagerank(lambda X: spmm_sparse(P_sparse, X), X0, args.alpha, args.tol, args.maxiter), args.warmup, args.repeat)
+            times = time_op(
+                lambda: block_pagerank(
+                    lambda X: spmm_sparse(P_sparse, X), X0, args.alpha, args.tol, args.maxiter
+                ),
+                args.warmup,
+                args.repeat,
+            )
             series.setdefault("pydata.sparse:pagerank", []).append(float(np.min(times) * 1e3))
 
         if not args.no_lacuna and P_lacuna is not None:
-            times = time_op(lambda: block_pagerank(lambda X: spmm_lacuna(P_lacuna, X.astype(np.float64, copy=False)), X0, args.alpha, args.tol, args.maxiter), args.warmup, args.repeat)
+            times = time_op(
+                lambda: block_pagerank(
+                    lambda X: spmm_lacuna(P_lacuna, X.astype(np.float64, copy=False)),
+                    X0,
+                    args.alpha,
+                    args.tol,
+                    args.maxiter,
+                ),
+                args.warmup,
+                args.repeat,
+            )
             series.setdefault("lacuna:pagerank", []).append(float(np.min(times) * 1e3))
 
     try:
@@ -187,7 +233,9 @@ def run_sweep(args) -> None:
     plt.yscale("log")
     plt.xlabel("Problem size n")
     plt.ylabel("Time (ms) per run (min over repeats)")
-    plt.title(f"Block PageRank time vs n (alpha={args.alpha}, k={args.k}, density={args.density}, maxiter={args.maxiter})")
+    plt.title(
+        f"Block PageRank time vs n (alpha={args.alpha}, k={args.k}, density={args.density}, maxiter={args.maxiter})"
+    )
     plt.legend()
     plt.grid(True, which="both", ls=":", alpha=0.5)
     out = getattr(args, "plot_file", "pagerank_block_times.png")
@@ -198,11 +246,14 @@ def run_sweep(args) -> None:
 
 # ---------- Main ----------
 
+
 def main():
-    p = argparse.ArgumentParser(description="Block PageRank benchmark across SciPy, PyData/Sparse, Lacuna")
+    p = argparse.ArgumentParser(
+        description="Block PageRank benchmark across SciPy, PyData/Sparse, Lacuna"
+    )
     p.add_argument("--n", type=int, default=4096)
     p.add_argument("--density", type=float, default=2e-4)
-    p.add_argument("--dtype", type=str, default="float64", choices=["float32", "float64"]) 
+    p.add_argument("--dtype", type=str, default="float64", choices=["float32", "float64"])
     p.add_argument("--k", type=int, default=16, help="Number of personalized PageRank columns")
     p.add_argument("--alpha", type=float, default=0.85, help="Damping factor")
     p.add_argument("--tol", type=float, default=1e-8)
@@ -243,12 +294,23 @@ def main():
         from lacuna.sparse.csr import CSR
     except Exception:
         CSR = None
-    P_lacuna = None if (args.no_lacuna or CSR is None) else CSR(P_scipy.indptr, P_scipy.indices, P_scipy.data.astype(np.float64, copy=False), P_scipy.shape, check=False)
+    P_lacuna = (
+        None
+        if (args.no_lacuna or CSR is None)
+        else CSR(
+            P_scipy.indptr,
+            P_scipy.indices,
+            P_scipy.data.astype(np.float64, copy=False),
+            P_scipy.shape,
+            check=False,
+        )
+    )
 
     P_sparse = None
     if not args.no_sparse:
         try:
             import sparse as psparse  # noqa: F401
+
             P_sparse = psparse.COO.from_scipy_sparse(P_scipy.tocoo())
         except Exception:
             P_sparse = None
@@ -259,40 +321,60 @@ def main():
     # SciPy
     if not args.no_scipy:
         times = time_op(
-            lambda: block_pagerank(lambda X: spmm_scipy(P_scipy, X), X0, args.alpha, args.tol, args.maxiter),
+            lambda: block_pagerank(
+                lambda X: spmm_scipy(P_scipy, X), X0, args.alpha, args.tol, args.maxiter
+            ),
             args.warmup,
             args.repeat,
         )
         stats = summarize("scipy:pagerank", times)
         if stats:
             results.append(stats)
-        _, iters, rel = block_pagerank(lambda X: spmm_scipy(P_scipy, X), X0, args.alpha, args.tol, args.maxiter)
+        _, iters, rel = block_pagerank(
+            lambda X: spmm_scipy(P_scipy, X), X0, args.alpha, args.tol, args.maxiter
+        )
         notes.append(f"scipy: iters={iters} rel_resid={rel:.2e}")
 
     # PyData/Sparse
     if not args.no_sparse and P_sparse is not None:
         times = time_op(
-            lambda: block_pagerank(lambda X: spmm_sparse(P_sparse, X), X0, args.alpha, args.tol, args.maxiter),
+            lambda: block_pagerank(
+                lambda X: spmm_sparse(P_sparse, X), X0, args.alpha, args.tol, args.maxiter
+            ),
             args.warmup,
             args.repeat,
         )
         stats = summarize("pydata.sparse:pagerank", times)
         if stats:
             results.append(stats)
-        _, iters, rel = block_pagerank(lambda X: spmm_sparse(P_sparse, X), X0, args.alpha, args.tol, args.maxiter)
+        _, iters, rel = block_pagerank(
+            lambda X: spmm_sparse(P_sparse, X), X0, args.alpha, args.tol, args.maxiter
+        )
         notes.append(f"pydata.sparse: iters={iters} rel_resid={rel:.2e}")
 
     # Lacuna
     if not args.no_lacuna and P_lacuna is not None:
         times = time_op(
-            lambda: block_pagerank(lambda X: spmm_lacuna(P_lacuna, X.astype(np.float64, copy=False)), X0, args.alpha, args.tol, args.maxiter),
+            lambda: block_pagerank(
+                lambda X: spmm_lacuna(P_lacuna, X.astype(np.float64, copy=False)),
+                X0,
+                args.alpha,
+                args.tol,
+                args.maxiter,
+            ),
             args.warmup,
             args.repeat,
         )
         stats = summarize("lacuna:pagerank", times)
         if stats:
             results.append(stats)
-        _, iters, rel = block_pagerank(lambda X: spmm_lacuna(P_lacuna, X.astype(np.float64, copy=False)), X0, args.alpha, args.tol, args.maxiter)
+        _, iters, rel = block_pagerank(
+            lambda X: spmm_lacuna(P_lacuna, X.astype(np.float64, copy=False)),
+            X0,
+            args.alpha,
+            args.tol,
+            args.maxiter,
+        )
         notes.append(f"lacuna: iters={iters} rel_resid={rel:.2e}")
 
     print(

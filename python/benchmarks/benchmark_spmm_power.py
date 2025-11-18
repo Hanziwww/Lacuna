@@ -12,6 +12,7 @@ except Exception:
 
 # ---------- Matrix builder ----------
 
+
 def build_spd_csr(n: int, density: float, seed: int, dtype: np.dtype) -> Tuple[Any, int]:
     if sp is None:
         raise RuntimeError("SciPy is required to build test matrices")
@@ -30,6 +31,7 @@ def build_spd_csr(n: int, density: float, seed: int, dtype: np.dtype) -> Tuple[A
 
 
 # ---------- Backends: SpMM wrappers ----------
+
 
 def spmm_scipy(A: Any, Q: np.ndarray) -> np.ndarray:
     return np.asarray(A @ Q, dtype=np.float64)
@@ -54,7 +56,10 @@ def spmm_lacuna(A_lacuna: Any, Q: np.ndarray) -> np.ndarray:
 
 # ---------- Block power iteration ----------
 
-def block_power(spmm: Callable[[np.ndarray], np.ndarray], n: int, k: int, iters: int, seed: int) -> Tuple[np.ndarray, np.ndarray]:
+
+def block_power(
+    spmm: Callable[[np.ndarray], np.ndarray], n: int, k: int, iters: int, seed: int
+) -> Tuple[np.ndarray, np.ndarray]:
     rs = np.random.RandomState(seed + 999)
     Q = rs.standard_normal((n, k)).astype(np.float64)
     Q, _ = np.linalg.qr(Q, mode="reduced")
@@ -68,6 +73,7 @@ def block_power(spmm: Callable[[np.ndarray], np.ndarray], n: int, k: int, iters:
 
 
 # ---------- Timing helpers ----------
+
 
 def time_op(fn: Callable[[], Any], warmup: int, repeat: int) -> List[float]:
     for _ in range(warmup):
@@ -95,6 +101,7 @@ def summarize(name: str, times: List[float]) -> Optional[Dict[str, float]]:
 
 # ---------- Sweep/plot helpers ----------
 
+
 def sizes_from_args(args) -> List[int]:
     if not getattr(args, "sweep", False):
         return [int(args.n)]
@@ -121,26 +128,59 @@ def run_sweep(args) -> None:
             from lacuna.sparse.csr import CSR
         except Exception:
             CSR = None
-        A_lacuna = None if (args.no_lacuna or CSR is None) else CSR(A_scipy.indptr, A_scipy.indices, A_scipy.data.astype(np.float64, copy=False), A_scipy.shape, check=False)
+        A_lacuna = (
+            None
+            if (args.no_lacuna or CSR is None)
+            else CSR(
+                A_scipy.indptr,
+                A_scipy.indices,
+                A_scipy.data.astype(np.float64, copy=False),
+                A_scipy.shape,
+                check=False,
+            )
+        )
         A_sparse = None
         if not args.no_sparse:
             try:
                 import sparse as psparse  # noqa: F401
+
                 A_sparse = A_scipy.tocoo()
                 A_sparse = psparse.COO.from_scipy_sparse(A_sparse)
             except Exception:
                 A_sparse = None
 
         if not args.no_scipy:
-            times = time_op(lambda: block_power(lambda Q: spmm_scipy(A_scipy, Q), n, args.k, args.iters, args.seed), args.warmup, args.repeat)
+            times = time_op(
+                lambda: block_power(
+                    lambda Q: spmm_scipy(A_scipy, Q), n, args.k, args.iters, args.seed
+                ),
+                args.warmup,
+                args.repeat,
+            )
             series.setdefault("scipy:power", []).append(float(np.min(times) * 1e3))
 
         if not args.no_sparse and A_sparse is not None:
-            times = time_op(lambda: block_power(lambda Q: spmm_sparse(A_sparse, Q), n, args.k, args.iters, args.seed), args.warmup, args.repeat)
+            times = time_op(
+                lambda: block_power(
+                    lambda Q: spmm_sparse(A_sparse, Q), n, args.k, args.iters, args.seed
+                ),
+                args.warmup,
+                args.repeat,
+            )
             series.setdefault("pydata.sparse:power", []).append(float(np.min(times) * 1e3))
 
         if not args.no_lacuna and A_lacuna is not None:
-            times = time_op(lambda: block_power(lambda Q: spmm_lacuna(A_lacuna, Q.astype(np.float64, copy=False)), n, args.k, args.iters, args.seed), args.warmup, args.repeat)
+            times = time_op(
+                lambda: block_power(
+                    lambda Q: spmm_lacuna(A_lacuna, Q.astype(np.float64, copy=False)),
+                    n,
+                    args.k,
+                    args.iters,
+                    args.seed,
+                ),
+                args.warmup,
+                args.repeat,
+            )
             series.setdefault("lacuna:power", []).append(float(np.min(times) * 1e3))
 
     try:
@@ -158,7 +198,9 @@ def run_sweep(args) -> None:
     plt.yscale("log")
     plt.xlabel("Problem size n")
     plt.ylabel("Time (ms) per run (min over repeats)")
-    plt.title(f"Block power iteration (k={args.k}, iters={args.iters}) vs n | SPD density={args.density}")
+    plt.title(
+        f"Block power iteration (k={args.k}, iters={args.iters}) vs n | SPD density={args.density}"
+    )
     plt.legend()
     plt.grid(True, which="both", ls=":", alpha=0.5)
     out = getattr(args, "plot_file", "spmm_power_times.png")
@@ -169,11 +211,14 @@ def run_sweep(args) -> None:
 
 # ---------- Main ----------
 
+
 def main():
-    p = argparse.ArgumentParser(description="SpMM benchmark via Block Power Iteration across SciPy, PyData/Sparse, Lacuna")
+    p = argparse.ArgumentParser(
+        description="SpMM benchmark via Block Power Iteration across SciPy, PyData/Sparse, Lacuna"
+    )
     p.add_argument("--n", type=int, default=4096)
     p.add_argument("--density", type=float, default=2e-4)
-    p.add_argument("--dtype", type=str, default="float64", choices=["float32", "float64"]) 
+    p.add_argument("--dtype", type=str, default="float64", choices=["float32", "float64"])
     p.add_argument("--k", type=int, default=32, help="Block size (number of eigenvectors)")
     p.add_argument("--iters", type=int, default=10, help="Number of power iterations")
     p.add_argument("--warmup", type=int, default=1)
@@ -205,12 +250,23 @@ def main():
         from lacuna.sparse.csr import CSR
     except Exception:
         CSR = None
-    A_lacuna = None if (args.no_lacuna or CSR is None) else CSR(A_scipy.indptr, A_scipy.indices, A_scipy.data.astype(np.float64, copy=False), A_scipy.shape, check=False)
+    A_lacuna = (
+        None
+        if (args.no_lacuna or CSR is None)
+        else CSR(
+            A_scipy.indptr,
+            A_scipy.indices,
+            A_scipy.data.astype(np.float64, copy=False),
+            A_scipy.shape,
+            check=False,
+        )
+    )
 
     A_sparse = None
     if not args.no_sparse:
         try:
             import sparse as psparse  # noqa: F401
+
             A_sparse = A_scipy.tocoo()
             A_sparse = psparse.COO.from_scipy_sparse(A_sparse)
         except Exception:
@@ -222,40 +278,60 @@ def main():
     # SciPy
     if not args.no_scipy:
         times = time_op(
-            lambda: block_power(lambda Q: spmm_scipy(A_scipy, Q), args.n, args.k, args.iters, args.seed),
+            lambda: block_power(
+                lambda Q: spmm_scipy(A_scipy, Q), args.n, args.k, args.iters, args.seed
+            ),
             args.warmup,
             args.repeat,
         )
         stats = summarize("scipy:power", times)
         if stats:
             results.append(stats)
-        _, evals = block_power(lambda Q: spmm_scipy(A_scipy, Q), args.n, args.k, args.iters, args.seed)
+        _, evals = block_power(
+            lambda Q: spmm_scipy(A_scipy, Q), args.n, args.k, args.iters, args.seed
+        )
         notes.append(f"scipy: lambda_max~{float(evals[0]):.4e}")
 
     # PyData/Sparse
     if not args.no_sparse and A_sparse is not None:
         times = time_op(
-            lambda: block_power(lambda Q: spmm_sparse(A_sparse, Q), args.n, args.k, args.iters, args.seed),
+            lambda: block_power(
+                lambda Q: spmm_sparse(A_sparse, Q), args.n, args.k, args.iters, args.seed
+            ),
             args.warmup,
             args.repeat,
         )
         stats = summarize("pydata.sparse:power", times)
         if stats:
             results.append(stats)
-        _, evals = block_power(lambda Q: spmm_sparse(A_sparse, Q), args.n, args.k, args.iters, args.seed)
+        _, evals = block_power(
+            lambda Q: spmm_sparse(A_sparse, Q), args.n, args.k, args.iters, args.seed
+        )
         notes.append(f"pydata.sparse: lambda_max~{float(evals[0]):.4e}")
 
     # Lacuna
     if not args.no_lacuna and A_lacuna is not None:
         times = time_op(
-            lambda: block_power(lambda Q: spmm_lacuna(A_lacuna, Q.astype(np.float64, copy=False)), args.n, args.k, args.iters, args.seed),
+            lambda: block_power(
+                lambda Q: spmm_lacuna(A_lacuna, Q.astype(np.float64, copy=False)),
+                args.n,
+                args.k,
+                args.iters,
+                args.seed,
+            ),
             args.warmup,
             args.repeat,
         )
         stats = summarize("lacuna:power", times)
         if stats:
             results.append(stats)
-        _, evals = block_power(lambda Q: spmm_lacuna(A_lacuna, Q.astype(np.float64, copy=False)), args.n, args.k, args.iters, args.seed)
+        _, evals = block_power(
+            lambda Q: spmm_lacuna(A_lacuna, Q.astype(np.float64, copy=False)),
+            args.n,
+            args.k,
+            args.iters,
+            args.seed,
+        )
         notes.append(f"lacuna: lambda_max~{float(evals[0]):.4e}")
 
     print(
