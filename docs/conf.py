@@ -22,6 +22,14 @@ autodoc_default_options = {
 autodoc_mock_imports = ["lacuna._core", "_core"]
 html_theme = "pydata_sphinx_theme"
 html_logo = "logo.png"
+html_theme_options = {
+    "secondary_sidebar_items": {
+        "**": ["page-toc", "sourcelink"],
+        "TODO": ["sourcelink"],
+        "changelog": ["sourcelink"],
+        "develop": ["sourcelink"],
+    }
+}
 pygments_dark_style = "monokai"
 napoleon_google_docstring = True
 napoleon_numpy_docstring = True

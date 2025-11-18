@@ -25,7 +25,6 @@
 - [Basic usage](#basic-usage)
   - [CSC and COO quick examples](#csc-and-coo-quick-examples)
   - [ND COO (COOND) examples](#nd-coo-coond-examples)
-- [Build the documentation](#build-the-documentation)
 - [Why Lacuna](#why-lacuna)
 - [Benchmarks](#benchmarks)
 - [Contributing](#contributing)
@@ -186,14 +185,6 @@ CSR0 = A.mode_unfold_to_csr(axis=0)  # rows = shape[0], cols = prod(shape[1:])
 CSC1 = A.mode_unfold_to_csc(axis=1)
 CSRrg = A.axes_unfold_to_csr([0, 2]) # group axes as rows
 CSCrg = A.axes_unfold_to_csc([1])    # group axes as rows (CSC)
-```
-
-## Build the documentation
-
-```powershell
-python -m pip install -U sphinx pydata-sphinx-theme myst-parser
-python -m sphinx -b html docs docs/_build/html
-Start-Process docs/_build/html/index.html
 ```
 
 ## Why Lacuna
