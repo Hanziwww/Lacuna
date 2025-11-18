@@ -193,7 +193,7 @@ CSCrg = A.axes_unfold_to_csc([1])    # group axes as rows (CSC)
 ```powershell
 python -m pip install -U sphinx pydata-sphinx-theme myst-parser
 python -m sphinx -b html docs docs/_build/html
-Start-Process docs\_build\html\index.html
+Start-Process docs/_build/html/index.html
 ```
 
 ## Why Lacuna
@@ -227,13 +227,13 @@ What Lacuna offers today:
 
 - Linear solve (CG)
 
-  ![Linear solve (CG)](python\benchmarks\plots\solve_times.png)
+  ![Linear solve (CG)](python/benchmarks/plots/solve_times.png)
 - Block power iteration
 
-  ![Block power iteration (SpMM)](python\benchmarks\plots\spmm_power_times.png)
+  ![Block power iteration (SpMM)](python/benchmarks/plots/spmm_power_times.png)
 - Block PageRank
 
-  ![Block PageRank](python\benchmarks\plots\pagerank_block.png)
+  ![Block PageRank](python/benchmarks/plots/pagerank_block.png)
 
 ## Contributing
 
