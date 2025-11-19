@@ -1,2 +1,2 @@
-pub mod tensordot;
-pub mod vecdot;
+pub mod matmul;
+pub mod matrix_transpose;

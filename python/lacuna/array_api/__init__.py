@@ -1,4 +1,4 @@
-__array_api_version__ = "2022.12"
+__array_api_version__ = "2024.12"
 
 from .constants import e, pi, inf, nan, newaxis
 
