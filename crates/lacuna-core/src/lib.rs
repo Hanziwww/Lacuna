@@ -12,6 +12,12 @@
     reason = "User requested enabling the restriction group; allow the blanket lint to use a curated subset"
 )]
 
+pub mod dtype;
+pub mod device;
+pub mod shape;
+pub mod broadcast;
+pub mod index;
+pub mod array;
 pub mod coo;
 pub mod csc;
 pub mod csr;

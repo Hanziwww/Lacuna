@@ -30,6 +30,10 @@ class SparseArray:
         self.ndim = len(self.shape)
         self.dtype = dtype
 
+    def __array_namespace__(self):
+        import lacuna.array_api as xp
+        return xp
+
 
 class SparseMatrix(SparseArray):
     """Abstract base class for 2D sparse matrices.

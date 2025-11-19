@@ -1,0 +1,51 @@
+from typing import Any, Dict
+
+from ..sparse.base import SparseArray, SparseMatrix
+
+
+def _numpy_xp():
+    import numpy.array_api as xp  # type: ignore
+
+    return xp
+
+
+def __array_namespace_info__() -> Dict[str, Any]:
+    return {
+        "devices": ["cpu"],
+        "default_device": "cpu",
+        "dtypes": ["bool", "int64", "float64"],
+        "default_dtypes": {
+            "floating": "float64",
+            "integral": "int64",
+            "boolean": "bool",
+        },
+        "capabilities": {
+            "sparse": True,
+        },
+    }
+
+
+def __getattr__(name: str):
+    xp = _numpy_xp()
+    attr = getattr(xp, name)
+
+    if callable(attr):
+        def guarded(*args, **kwargs):
+            def _is_sparse(x: Any) -> bool:
+                return isinstance(x, (SparseArray, SparseMatrix))
+
+            for v in args:
+                if _is_sparse(v):
+                    raise NotImplementedError(
+                        f"{name!s} is not implemented for sparse inputs in lacuna.array_api"
+                    )
+            for v in kwargs.values():
+                if _is_sparse(v):
+                    raise NotImplementedError(
+                        f"{name!s} is not implemented for sparse inputs in lacuna.array_api"
+                    )
+            return attr(*args, **kwargs)
+
+        return guarded
+
+    return attr

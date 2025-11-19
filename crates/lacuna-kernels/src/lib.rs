@@ -21,6 +21,14 @@ pub mod spmv;
 pub mod transform;
 mod util;
 
+pub mod creation;
+pub mod manipulation;
+pub mod indexing;
+pub mod search_sort;
+pub mod setops;
+pub mod elementwise;
+pub mod linalg;
+
 pub use arith::{
     add_coond_f64_i64, add_csc_f64_i64, add_csr_f64_i64, hadamard_broadcast_coond_f64_i64,
     hadamard_coond_f64_i64, hadamard_csc_f64_i64, hadamard_csr_f64_i64, mul_scalar_coo_f64,
