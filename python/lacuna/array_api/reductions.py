@@ -1,0 +1,50 @@
+from . import _namespace as _ns
+
+
+def sum(x, axis=None, keepdims=False):
+    return getattr(_ns, "sum")(x, axis=axis, keepdims=keepdims)
+
+
+def prod(x, axis=None, keepdims=False):
+    return getattr(_ns, "prod")(x, axis=axis, keepdims=keepdims)
+
+
+def min(x, axis=None, keepdims=False):
+    return getattr(_ns, "min")(x, axis=axis, keepdims=keepdims)
+
+
+def max(x, axis=None, keepdims=False):
+    return getattr(_ns, "max")(x, axis=axis, keepdims=keepdims)
+
+
+def mean(x, axis=None, keepdims=False):
+    return getattr(_ns, "mean")(x, axis=axis, keepdims=keepdims)
+
+
+def var(x, axis=None, keepdims=False):
+    return getattr(_ns, "var")(x, axis=axis, keepdims=keepdims)
+
+
+def std(x, axis=None, keepdims=False):
+    return getattr(_ns, "std")(x, axis=axis, keepdims=keepdims)
+
+
+def cumulative_sum(x, axis=None):
+    return getattr(_ns, "cumulative_sum")(x, axis=axis)
+
+
+def cumulative_prod(x, axis=None):
+    return getattr(_ns, "cumulative_prod")(x, axis=axis)
+
+
+def all(x, axis=None, keepdims=False):
+    return getattr(_ns, "all")(x, axis=axis, keepdims=keepdims)
+
+
+def any(x, axis=None, keepdims=False):
+    return getattr(_ns, "any")(x, axis=axis, keepdims=keepdims)
+
+
+def diff(x, *, n=1, axis=-1):
+    return getattr(_ns, "diff")(x, n=n, axis=axis)
+

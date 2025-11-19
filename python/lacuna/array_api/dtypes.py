@@ -1,13 +1,25 @@
-from typing import Any
+from . import _namespace as _ns
 
 
-def finfo(dtype: Any):
-    import numpy as _np
-
-    return _np.finfo(dtype)
+def astype(x, dtype, /, *, copy=True):
+    return getattr(_ns, "astype")(x, dtype, copy=copy)
 
 
-def iinfo(dtype: Any):
-    import numpy as _np
+def can_cast(from_dtype, to_dtype, /):
+    return getattr(_ns, "can_cast")(from_dtype, to_dtype)
 
-    return _np.iinfo(dtype)
+
+def isdtype(dtype, kind):
+    return getattr(_ns, "isdtype")(dtype, kind)
+
+
+def result_type(*arrays_and_dtypes):
+    return getattr(_ns, "result_type")(*arrays_and_dtypes)
+
+
+def finfo(dtype):
+    return getattr(_ns, "finfo")(dtype)
+
+
+def iinfo(dtype):
+    return getattr(_ns, "iinfo")(dtype)
