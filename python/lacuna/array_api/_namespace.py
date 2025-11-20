@@ -22,15 +22,11 @@ def __array_namespace_info__() -> Dict[str, Any]:
             "boolean": "bool",
         },
         "capabilities": {
-            # Global
             "sparse": True,
-            # Implemented sparse-first ops in this release
-            "linalg": ["matmul", "matrix_transpose"],
+            "linalg": ["matmul", "matrix_transpose", "tensordot", "vecdot"],
             "reductions": ["sum", "mean", "count_nonzero"],
-            "elementwise": ["add", "subtract", "multiply"],  # multiply includes COOND broadcast
-            # Creation helpers routed to sparse types
+            "elementwise": ["add", "subtract", "multiply"],
             "creation": ["zeros", "eye"],
-            # Manipulation for COOND
             "manipulation": ["permute_dims", "reshape"],
         },
     }

@@ -7,6 +7,7 @@ pub type DenseStripe = (Vec<f64>, Vec<u8>, Vec<usize>);
 pub type StripeAccs = Vec<Option<DenseStripe>>;
 
 #[inline]
+#[must_use]
 pub fn i64_to_usize(x: i64) -> usize {
     debug_assert!(x >= 0);
     #[allow(clippy::cast_sign_loss, clippy::cast_possible_truncation)]
@@ -24,6 +25,7 @@ pub struct UsizeF64Map {
 
 impl UsizeF64Map {
     #[inline]
+    #[must_use]
     pub fn with_capacity(cap: usize) -> Self {
         let cap2 = cap.next_power_of_two().max(16);
         let keys = vec![usize::MAX; cap2];

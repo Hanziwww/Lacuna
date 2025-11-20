@@ -42,6 +42,16 @@ pub use linalg::matrix_transpose::{
     transpose_coo_f64_i64, transpose_csc_f64_i64, transpose_f64_i64,
 };
 
+pub use linalg::tensordot::{
+    tensordot_coo_dense_axes1x0_f64_i64, tensordot_coond_dense_axis_f64_i64,
+    tensordot_csc_dense_axes1x0_f64_i64, tensordot_csr_dense_axes1x0_f64_i64,
+};
+pub use linalg::vecdot::{
+    vecdot_coo_dense_axis0_f64_i64, vecdot_coo_dense_axis1_f64_i64,
+    vecdot_coond_dense_axis_f64_i64, vecdot_csc_dense_axis0_f64_i64,
+    vecdot_csc_dense_axis1_f64_i64, vecdot_csr_dense_axis0_f64_i64, vecdot_csr_dense_axis1_f64_i64,
+};
+
 pub use statistical::mean::{mean_coond_f64, reduce_mean_axes_coond_f64_i64};
 pub use statistical::sum::{
     col_sums_coo_f64, col_sums_csc_f64, col_sums_f64, reduce_sum_axes_coond_f64_i64,

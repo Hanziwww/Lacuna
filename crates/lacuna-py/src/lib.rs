@@ -36,6 +36,10 @@ mod types;
 // Array API aligned module structure
 pub mod array_api;
 
+#[allow(
+    clippy::too_many_lines,
+    reason = "PyO3 module registration is naturally verbose"
+)]
 #[pymodule]
 fn _core(m: &Bound<PyModule>) -> PyResult<()> {
     // Module metadata
@@ -65,6 +69,42 @@ fn _core(m: &Bound<PyModule>) -> PyResult<()> {
     )?)?;
     m.add_function(wrap_pyfunction!(
         crate::array_api::linalg::transpose_coo_from_parts,
+        m
+    )?)?;
+
+    // Linalg: tensordot (sparse × dense)
+    m.add_function(wrap_pyfunction!(
+        crate::array_api::linalg::tensordot_csr_dense_axes1x0_from_parts,
+        m
+    )?)?;
+    m.add_function(wrap_pyfunction!(
+        crate::array_api::linalg::tensordot_csc_dense_axes1x0_from_parts,
+        m
+    )?)?;
+    m.add_function(wrap_pyfunction!(
+        crate::array_api::linalg::tensordot_coo_dense_axes1x0_from_parts,
+        m
+    )?)?;
+    m.add_function(wrap_pyfunction!(
+        crate::array_api::linalg::coond_tensordot_dense_axis_from_parts,
+        m
+    )?)?;
+
+    // Linalg: vecdot (sparse × dense)
+    m.add_function(wrap_pyfunction!(
+        crate::array_api::linalg::vecdot_csr_axis0_from_parts,
+        m
+    )?)?;
+    m.add_function(wrap_pyfunction!(
+        crate::array_api::linalg::vecdot_csc_axis0_from_parts,
+        m
+    )?)?;
+    m.add_function(wrap_pyfunction!(
+        crate::array_api::linalg::vecdot_coo_axis0_from_parts,
+        m
+    )?)?;
+    m.add_function(wrap_pyfunction!(
+        crate::array_api::linalg::coond_vecdot_axis_from_parts,
         m
     )?)?;
 

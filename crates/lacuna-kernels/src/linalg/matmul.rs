@@ -694,35 +694,37 @@ pub fn spmm_coond_f64_i64(
     );
 
     let nnz = a.data.len();
-    let mut out_shape = a.shape.clone();
-    out_shape[axis] = k;
+    // tensordot semantics: output axes are A axes excluding `axis`, followed by B's non-contracted axes (here just k)
+    let remain_axes: Vec<usize> = (0..ndim).filter(|&d| d != axis).collect();
+    let remain_ndim = remain_axes.len();
+    let mut out_shape: Vec<usize> = remain_axes.iter().map(|&d| a.shape[d]).collect();
+    out_shape.push(k);
+    let out_ndim = remain_ndim + 1;
     if nnz == 0 || k == 0 {
         return CooNd::from_parts_unchecked(out_shape, Vec::new(), Vec::new());
     }
 
-    // Row-major strides for output shape
-    let mut strides = vec![0usize; ndim];
-    strides[ndim - 1] = 1;
-    for i in (0..ndim - 1).rev() {
+    // Row-major strides for output shape (remain_axes..., k)
+    let mut strides = vec![0usize; out_ndim];
+    strides[out_ndim - 1] = 1;
+    for i in (0..out_ndim - 1).rev() {
         let s = strides[i + 1]
             .checked_mul(out_shape[i + 1])
             .expect("shape product overflow");
         strides[i] = s;
     }
-    let stride_axis = strides[axis];
+    let stride_k = strides[out_ndim - 1];
 
-    let mut acc = UsizeF64Map::with_capacity(nnz * (k.min(8))); // heuristic
+    let mut acc = UsizeF64Map::with_capacity(nnz * (k.min(8)));
     for p in 0..nnz {
         let base = p * ndim;
         let ax_idx = i64_to_usize(a.indices[base + axis]);
+        // linear base over remain axes in the order of remain_axes
         let mut lin_base: usize = 0;
-        for d in 0..ndim {
-            if d == axis {
-                continue;
-            }
+        for (m, &d) in remain_axes.iter().enumerate() {
             let idx = i64_to_usize(a.indices[base + d]);
             lin_base = lin_base
-                .checked_add(idx.checked_mul(strides[d]).expect("linear index overflow"))
+                .checked_add(idx.checked_mul(strides[m]).expect("linear index overflow"))
                 .expect("linear index overflow");
         }
         let a_val = a.data[p];
@@ -736,7 +738,7 @@ pub fn spmm_coond_f64_i64(
             let v3 = a_val * unsafe { *b.as_ptr().add(b_row_base + c + 3) };
             if v0 != 0.0 {
                 let key = lin_base
-                    .checked_add(c.checked_mul(stride_axis).expect("linear index overflow"))
+                    .checked_add(c.checked_mul(stride_k).expect("linear index overflow"))
                     .expect("linear index overflow");
                 acc.insert_add(key, v0);
             }
@@ -744,7 +746,7 @@ pub fn spmm_coond_f64_i64(
                 let key = lin_base
                     .checked_add(
                         (c + 1)
-                            .checked_mul(stride_axis)
+                            .checked_mul(stride_k)
                             .expect("linear index overflow"),
                     )
                     .expect("linear index overflow");
@@ -754,7 +756,7 @@ pub fn spmm_coond_f64_i64(
                 let key = lin_base
                     .checked_add(
                         (c + 2)
-                            .checked_mul(stride_axis)
+                            .checked_mul(stride_k)
                             .expect("linear index overflow"),
                     )
                     .expect("linear index overflow");
@@ -764,7 +766,7 @@ pub fn spmm_coond_f64_i64(
                 let key = lin_base
                     .checked_add(
                         (c + 3)
-                            .checked_mul(stride_axis)
+                            .checked_mul(stride_k)
                             .expect("linear index overflow"),
                     )
                     .expect("linear index overflow");
@@ -776,7 +778,7 @@ pub fn spmm_coond_f64_i64(
             let v = a_val * unsafe { *b.as_ptr().add(b_row_base + c) };
             if v != 0.0 {
                 let key = lin_base
-                    .checked_add(c.checked_mul(stride_axis).expect("linear index overflow"))
+                    .checked_add(c.checked_mul(stride_k).expect("linear index overflow"))
                     .expect("linear index overflow");
                 acc.insert_add(key, v);
             }
@@ -794,10 +796,10 @@ pub fn spmm_coond_f64_i64(
     }
     let out_nnz = out_pairs.len();
     let mut out_data = Vec::with_capacity(out_nnz);
-    let mut out_indices = vec![0i64; out_nnz * ndim];
+    let mut out_indices = vec![0i64; out_nnz * out_ndim];
     for (pos, (mut lin, v)) in out_pairs.into_iter().enumerate() {
-        let base = pos * ndim;
-        for d in 0..ndim {
+        let base = pos * out_ndim;
+        for d in 0..out_ndim {
             let s = strides[d];
             let idx = lin / s;
             lin -= idx * s;
