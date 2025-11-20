@@ -34,7 +34,7 @@ jobs:
 
       - name: Build and install extension (maturin develop)
         run: |
-          maturin develop -m crates/lacuna-py/Cargo.toml
+          maturin develop --release
 
       - name: Run Python tests (pytest)
         run: |

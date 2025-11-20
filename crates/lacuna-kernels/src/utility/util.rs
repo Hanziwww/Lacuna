@@ -123,4 +123,3 @@ impl UsizeF64Map {
         out
     }
 }
-
