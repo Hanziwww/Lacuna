@@ -14,7 +14,7 @@
   <a href="https://crates.io/crates/wide"><img src="https://img.shields.io/badge/SIMD-wide-0A7BBB" alt="SIMD wide" /></a>
   <a href="https://crates.io/crates/rayon"><img src="https://img.shields.io/badge/Rayon-parallelism-5C6BC0" alt="Rayon parallelism" /></a>
   <a href="https://numpy.org/"><img src="https://img.shields.io/badge/NumPy-compatible-013243?logo=numpy&logoColor=white" alt="NumPy compatible" /></a>
-  <a href="https://data-apis.org/array-api/latest/"><img src="https://img.shields.io/badge/Python%20Array-API%20Stdard-DC143C" alt="Python Array API compliant" /></a>
+  <a href="https://data-apis.org/array-api/latest/"><img src="https://img.shields.io/badge/Python%20Array-API%20Standard-DC143C" alt="Python Array API compliant" /></a>
 </p>
 
 > ⚠ Status: Work in progress. APIs and performance characteristics may change without notice. Contact us if you'd like to join the development.
