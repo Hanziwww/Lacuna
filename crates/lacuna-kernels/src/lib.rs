@@ -12,19 +12,15 @@ pub const fn init_parallel() {
     // Rayon auto-detects threads by default; users may set RAYON_NUM_THREADS.
 }
 
-// Core utilities
-mod util;
-
 // New Array API-aligned module structure
+pub mod data_type_functions;
 pub mod elementwise;
 pub mod linalg;
-pub mod statistical;
 pub mod manipulation;
-pub mod data_type_functions;
+pub mod statistical;
 pub mod utility;
 
 // Placeholder modules (empty for now)
-pub mod creation;
 pub mod indexing;
 pub mod search_sort;
 pub mod setops;
@@ -42,7 +38,9 @@ pub use linalg::matmul::{
     spmm_auto_f64_i64, spmm_coo_f64_i64, spmm_coond_f64_i64, spmm_csc_f64_i64, spmm_f64_i64,
     spmv_coo_f64_i64, spmv_coond_f64_i64, spmv_csc_f64_i64, spmv_f64_i64,
 };
-pub use linalg::matrix_transpose::{transpose_coo_f64_i64, transpose_csc_f64_i64, transpose_f64_i64};
+pub use linalg::matrix_transpose::{
+    transpose_coo_f64_i64, transpose_csc_f64_i64, transpose_f64_i64,
+};
 
 pub use statistical::mean::{mean_coond_f64, reduce_mean_axes_coond_f64_i64};
 pub use statistical::sum::{

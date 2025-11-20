@@ -7,4 +7,3 @@ def sort(x, axis=-1):
 
 def argsort(x, axis=-1):
     return getattr(_ns, "argsort")(x, axis=axis)
-

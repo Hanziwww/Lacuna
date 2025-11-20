@@ -8,6 +8,7 @@ except Exception as e:
     except Exception as e2:
         _core = None
 from . import array_api as array_api
+
 __version__ = getattr(_core, "version", "0.1.0")
 
 __all__ = [

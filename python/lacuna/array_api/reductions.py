@@ -1,8 +1,9 @@
+from . import _dispatch as _dp
 from . import _namespace as _ns
 
 
 def sum(x, axis=None, keepdims=False):
-    return getattr(_ns, "sum")(x, axis=axis, keepdims=keepdims)
+    return _dp.sum(x, axis=axis, keepdims=keepdims)
 
 
 def prod(x, axis=None, keepdims=False):
@@ -18,7 +19,7 @@ def max(x, axis=None, keepdims=False):
 
 
 def mean(x, axis=None, keepdims=False):
-    return getattr(_ns, "mean")(x, axis=axis, keepdims=keepdims)
+    return _dp.mean(x, axis=axis, keepdims=keepdims)
 
 
 def var(x, axis=None, keepdims=False):
@@ -47,4 +48,3 @@ def any(x, axis=None, keepdims=False):
 
 def diff(x, *, n=1, axis=-1):
     return getattr(_ns, "diff")(x, n=n, axis=axis)
-

@@ -1,7 +1,14 @@
+from ..sparse import CSR
+from ..sparse.base import SparseArray, SparseMatrix
 from . import _namespace as _ns
 
 
 def astype(x, dtype, /, *, copy=True):
+    # Provide sparse path for CSR; other sparse types not yet supported here.
+    if isinstance(x, CSR):
+        return x.astype(dtype)
+    if isinstance(x, (SparseArray, SparseMatrix)):
+        raise NotImplementedError("astype is only implemented for CSR in lacuna.array_api")
     return getattr(_ns, "astype")(x, dtype, copy=copy)
 
 

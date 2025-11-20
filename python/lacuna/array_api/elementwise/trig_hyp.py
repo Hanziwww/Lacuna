@@ -51,4 +51,3 @@ def acosh(x):
 
 def atanh(x):
     return getattr(_ns, "atanh")(x)
-

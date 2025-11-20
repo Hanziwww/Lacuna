@@ -39,4 +39,3 @@ def bitwise_left_shift(x, y):
 
 def bitwise_right_shift(x, y):
     return getattr(_ns, "bitwise_right_shift")(x, y)
-

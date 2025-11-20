@@ -1,3 +1,4 @@
+from . import _dispatch as _dp
 from . import _namespace as _ns
 
 
@@ -14,7 +15,7 @@ def nonzero(x):
 
 
 def count_nonzero(x, axis=None, keepdims=False):
-    return getattr(_ns, "count_nonzero")(x, axis=axis, keepdims=keepdims)
+    return _dp.count_nonzero(x, axis=axis, keepdims=keepdims)
 
 
 def where(cond, x, y):
@@ -23,4 +24,3 @@ def where(cond, x, y):
 
 def searchsorted(x, v, *, side="left"):
     return getattr(_ns, "searchsorted")(x, v, side=side)
-

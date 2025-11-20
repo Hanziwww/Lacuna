@@ -1,8 +1,9 @@
+from . import _dispatch as _dp
 from . import _namespace as _ns
 
 
 def matmul(x, y):
-    return getattr(_ns, "matmul")(x, y)
+    return _dp.matmul(x, y)
 
 
 def tensordot(x, y, *, axes=2):
@@ -14,5 +15,4 @@ def vecdot(x, y, *, axis=None):
 
 
 def matrix_transpose(x):
-    return getattr(_ns, "matrix_transpose")(x)
-
+    return _dp.matrix_transpose(x)

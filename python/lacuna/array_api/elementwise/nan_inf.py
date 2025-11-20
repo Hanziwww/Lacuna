@@ -19,4 +19,3 @@ def copysign(x, y):
 
 def nextafter(x, y):
     return getattr(_ns, "nextafter")(x, y)
-

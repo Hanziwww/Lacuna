@@ -98,6 +98,112 @@ class CSR(SparseMatrix):
         """
         return cls(indptr, indices, data, shape, check=check)
 
+    @classmethod
+    def zeros(cls, shape, dtype=np.float64):
+        """Create a CSR matrix filled with zeros (empty sparse matrix).
+
+        Parameters
+        ----------
+        shape : tuple of int
+            Matrix shape (nrows, ncols).
+        dtype : numpy.dtype, optional
+            Data type (default: np.float64).
+
+        Returns
+        -------
+        CSR
+            Empty sparse matrix (no non-zero elements).
+
+        Examples
+        --------
+        >>> A = CSR.zeros((10, 20))
+        >>> A.nnz
+        0
+        >>> A.shape
+        (10, 20)
+        """
+        if _core is None:
+            # Fallback: create empty arrays
+            nrows, ncols = shape
+            indptr = np.zeros(nrows + 1, dtype=np.int64)
+            indices = np.array([], dtype=np.int64)
+            data = np.array([], dtype=np.float64)
+        else:
+            # Use Rust implementation
+            indptr, indices, data = _core.zeros_csr(*shape)
+        return cls(indptr, indices, data, shape, dtype=dtype, check=False)
+
+    @classmethod
+    def eye(cls, n, dtype=np.float64):
+        """Create an identity matrix in CSR format.
+
+        Parameters
+        ----------
+        n : int
+            Size of the square identity matrix.
+        dtype : numpy.dtype, optional
+            Data type (default: np.float64).
+
+        Returns
+        -------
+        CSR
+            Identity matrix of size n×n.
+
+        Examples
+        --------
+        >>> I = CSR.eye(5)
+        >>> I.nnz
+        5
+        >>> I.sum()
+        5.0
+        """
+        if _core is None:
+            # Fallback: manual construction
+            indptr = np.arange(n + 1, dtype=np.int64)
+            indices = np.arange(n, dtype=np.int64)
+            data = np.ones(n, dtype=np.float64)
+        else:
+            # Use Rust implementation
+            indptr, indices, data = _core.eye_csr(n)
+        return cls(indptr, indices, data, (n, n), dtype=dtype, check=False)
+
+    @classmethod
+    def diag(cls, diagonal, dtype=np.float64):
+        """Create a diagonal matrix in CSR format.
+
+        Parameters
+        ----------
+        diagonal : array-like
+            Diagonal values.
+        dtype : numpy.dtype, optional
+            Data type (default: np.float64).
+
+        Returns
+        -------
+        CSR
+            Diagonal matrix.
+
+        Examples
+        --------
+        >>> D = CSR.diag([1.0, 2.0, 3.0])
+        >>> D.nnz
+        3
+        >>> D.sum()
+        6.0
+        """
+        diag_arr = np.asarray(diagonal, dtype=np.float64)
+        if _core is None:
+            # Fallback: manual construction
+            n = len(diag_arr)
+            indptr = np.arange(n + 1, dtype=np.int64)
+            indices = np.arange(n, dtype=np.int64)
+            data = diag_arr.copy()
+        else:
+            # Use Rust implementation
+            indptr, indices, data = _core.diag_csr(diag_arr.tolist())
+        n = len(diag_arr)
+        return cls(indptr, indices, data, (n, n), dtype=dtype, check=False)
+
     @property
     def nnz(self):
         """Number of stored non-zero entries (int)."""

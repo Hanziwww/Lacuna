@@ -18,7 +18,7 @@
     reason = "Index-style loops and simple comparisons are intentional for clarity and performance"
 )]
 
-use crate::util::UsizeF64Map;
+use crate::utility::util::UsizeF64Map;
 use core::cmp::Ordering;
 use lacuna_core::{Coo, CooNd, Csc, Csr};
 use rayon::prelude::*;

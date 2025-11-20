@@ -32,6 +32,7 @@ class SparseArray:
 
     def __array_namespace__(self):
         import lacuna.array_api as xp
+
         return xp
 
 

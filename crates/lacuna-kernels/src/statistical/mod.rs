@@ -1,2 +1,2 @@
-pub mod sum;
 pub mod mean;
+pub mod sum;

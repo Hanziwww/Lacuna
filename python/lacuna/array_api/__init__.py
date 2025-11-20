@@ -1,105 +1,50 @@
 __array_api_version__ = "2024.12"
 
-from .constants import e, pi, inf, nan, newaxis
-
+from .constants import e, inf, nan, newaxis, pi
 from .creation import (
-    asarray,
-    zeros,
-    ones,
-    full,
-    empty,
-    zeros_like,
-    ones_like,
-    full_like,
-    empty_like,
     arange,
+    asarray,
+    empty,
+    empty_like,
+    eye,
+    from_dlpack,
+    full,
+    full_like,
     linspace,
     meshgrid,
-    eye,
+    ones,
+    ones_like,
     tril,
     triu,
-    from_dlpack,
+    zeros,
+    zeros_like,
 )
 from .dtypes import (
     astype,
     can_cast,
-    isdtype,
-    result_type,
     finfo,
     iinfo,
+    isdtype,
+    result_type,
 )
-from .indexing import take, take_along_axis
-from .manipulation import (
-    reshape,
-    squeeze,
-    expand_dims,
-    moveaxis,
-    permute_dims,
-    stack,
-    concat,
-    unstack,
-    broadcast_to,
-    broadcast_arrays,
-    flip,
-    roll,
-    repeat,
-    tile,
-)
-from .reductions import (
-    sum,
-    prod,
-    min,
-    max,
-    mean,
-    var,
-    std,
-    cumulative_sum,
-    cumulative_prod,
-    all,
-    any,
-    diff,
-)
-from .searching import (
-    argmax,
-    argmin,
-    nonzero,
-    count_nonzero,
-    where,
-    searchsorted,
-)
-from .sets import unique_values, unique_counts, unique_inverse, unique_all
-from .sorting import sort, argsort
-from .linalg import matmul, tensordot, vecdot, matrix_transpose
 from .elementwise.arithmetic import (
     add,
-    subtract,
-    multiply,
     divide,
-    floor_divide,
-    remainder,
-    pow,
-    maximum,
-    minimum,
     equal,
-    not_equal,
+    floor_divide,
     greater,
     greater_equal,
     less,
     less_equal,
+    maximum,
+    minimum,
+    multiply,
+    not_equal,
+    pow,
+    remainder,
+    subtract,
 )
-from .elementwise.math_basic import (
-    abs,
-    negative,
-    positive,
-    sign,
-    signbit,
-    sqrt,
-    square,
-    floor,
-    ceil,
-    trunc,
-    round,
-)
+from .elementwise.complex import conj, imag, real
 from .elementwise.exp_log import (
     exp,
     expm1,
@@ -109,42 +54,98 @@ from .elementwise.exp_log import (
     log10,
     logaddexp,
 )
-from .elementwise.trig_hyp import (
-    sin,
-    cos,
-    tan,
-    asin,
-    acos,
-    atan,
-    atan2,
-    sinh,
-    cosh,
-    tanh,
-    asinh,
-    acosh,
-    atanh,
-)
 from .elementwise.logical_bitwise import (
-    logical_and,
-    logical_or,
-    logical_not,
-    logical_xor,
     bitwise_and,
-    bitwise_or,
-    bitwise_xor,
     bitwise_invert,
     bitwise_left_shift,
+    bitwise_or,
     bitwise_right_shift,
+    bitwise_xor,
+    logical_and,
+    logical_not,
+    logical_or,
+    logical_xor,
 )
-from .elementwise.nan_inf import isfinite, isinf, isnan, copysign, nextafter
-from .elementwise.complex import real, imag, conj
+from .elementwise.math_basic import (
+    abs,
+    ceil,
+    floor,
+    negative,
+    positive,
+    round,
+    sign,
+    signbit,
+    sqrt,
+    square,
+    trunc,
+)
+from .elementwise.nan_inf import copysign, isfinite, isinf, isnan, nextafter
+from .elementwise.trig_hyp import (
+    acos,
+    acosh,
+    asin,
+    asinh,
+    atan,
+    atan2,
+    atanh,
+    cos,
+    cosh,
+    sin,
+    sinh,
+    tan,
+    tanh,
+)
+from .indexing import take, take_along_axis
+from .linalg import matmul, matrix_transpose, tensordot, vecdot
+from .manipulation import (
+    broadcast_arrays,
+    broadcast_to,
+    concat,
+    expand_dims,
+    flip,
+    moveaxis,
+    permute_dims,
+    repeat,
+    reshape,
+    roll,
+    squeeze,
+    stack,
+    tile,
+    unstack,
+)
+from .reductions import (
+    all,
+    any,
+    cumulative_prod,
+    cumulative_sum,
+    diff,
+    max,
+    mean,
+    min,
+    prod,
+    std,
+    sum,
+    var,
+)
+from .searching import (
+    argmax,
+    argmin,
+    count_nonzero,
+    nonzero,
+    searchsorted,
+    where,
+)
+from .sets import unique_all, unique_counts, unique_inverse, unique_values
+from .sorting import argsort, sort
 
 
 def __getattr__(name: str):
     from . import _namespace as _ns
+
     return getattr(_ns, name)
 
 
 def __array_namespace_info__():
     from . import _namespace as _ns
+
     return _ns.__array_namespace_info__()

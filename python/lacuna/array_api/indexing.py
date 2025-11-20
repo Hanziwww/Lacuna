@@ -7,4 +7,3 @@ def take(x, indices, /, *, axis=None):
 
 def take_along_axis(x, indices, axis):
     return getattr(_ns, "take_along_axis")(x, indices, axis)
-

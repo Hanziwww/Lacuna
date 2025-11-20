@@ -6,8 +6,8 @@
 )]
 
 use crate::data_type_functions::astype::csr_to_csc_f64_i64;
-use crate::util::{
-    DenseStripe, StripeAccs, UsizeF64Map, STRIPE_ROWS, SMALL_DIM_LIMIT, SMALL_NNZ_LIMIT,
+use crate::utility::util::{
+    DenseStripe, SMALL_DIM_LIMIT, SMALL_NNZ_LIMIT, STRIPE_ROWS, StripeAccs, UsizeF64Map,
     i64_to_usize,
 };
 use lacuna_core::{Coo, CooNd, Csc, Csr};

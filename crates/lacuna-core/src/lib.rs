@@ -12,16 +12,16 @@
     reason = "User requested enabling the restriction group; allow the blanket lint to use a curated subset"
 )]
 
-pub mod dtype;
-pub mod device;
-pub mod shape;
-pub mod broadcast;
-pub mod index;
 pub mod array;
+pub mod broadcast;
 pub mod coo;
 pub mod csc;
 pub mod csr;
+pub mod device;
+pub mod dtype;
+pub mod index;
 pub mod nd;
+pub mod shape;
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 pub type Csr<T, I> = csr::Csr<T, I>;

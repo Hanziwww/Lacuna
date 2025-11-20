@@ -1,16 +1,17 @@
+from .. import _dispatch as _dp
 from .. import _namespace as _ns
 
 
 def add(x, y):
-    return getattr(_ns, "add")(x, y)
+    return _dp.add(x, y)
 
 
 def subtract(x, y):
-    return getattr(_ns, "subtract")(x, y)
+    return _dp.subtract(x, y)
 
 
 def multiply(x, y):
-    return getattr(_ns, "multiply")(x, y)
+    return _dp.multiply(x, y)
 
 
 def divide(x, y):
@@ -59,4 +60,3 @@ def less(x, y):
 
 def less_equal(x, y):
     return getattr(_ns, "less_equal")(x, y)
-

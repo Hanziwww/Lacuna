@@ -1,4 +1,4 @@
-//! Sum reductions: sum, row_sums, col_sums, reduce_sum_axes
+//! Sum reductions: sum, `row_sums`, `col_sums`, `reduce_sum_axes`
 
 #![allow(
     clippy::many_single_char_names,
@@ -6,7 +6,7 @@
     reason = "Math kernels conventionally use i/j/k for indices"
 )]
 
-use crate::util::{
+use crate::utility::util::{
     SMALL_DIM_LIMIT, SMALL_NNZ_LIMIT, STRIPE, StripeAccs, UsizeF64Map, i64_to_usize,
 };
 use lacuna_core::{Coo, CooNd, Csc, Csr};
@@ -14,15 +14,6 @@ use rayon::prelude::*;
 use std::cell::RefCell;
 use thread_local::ThreadLocal;
 use wide::f64x4;
-
-#[inline]
-fn product_checked(dims: &[usize]) -> usize {
-    let mut acc: usize = 1;
-    for &x in dims {
-        acc = acc.checked_mul(x).expect("shape product overflow");
-    }
-    acc
-}
 
 #[inline]
 fn usize_to_i64(x: usize) -> i64 {

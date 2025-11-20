@@ -43,4 +43,3 @@ def trunc(x):
 
 def round(x):
     return getattr(_ns, "round")(x)
-

@@ -14,7 +14,7 @@
     reason = "Math kernels conventionally use i/j/k/p for indices"
 )]
 
-use crate::util::UsizeF64Map;
+use crate::utility::util::UsizeF64Map;
 use lacuna_core::{CooNd, Csc, Csr};
 use rayon::prelude::*;
 
@@ -133,7 +133,7 @@ pub fn add_csr_f64_i64(a: &Csr<f64, i64>, b: &Csr<f64, i64>) -> Csr<f64, i64> {
     assert_eq!(a.nrows, b.nrows);
     assert_eq!(a.ncols, b.ncols);
     let nrows = a.nrows;
-    
+
     // Pass 1: count output nnz per row in parallel
     let counts: Vec<usize> = (0..nrows)
         .into_par_iter()
@@ -206,7 +206,7 @@ pub fn add_csc_f64_i64(a: &Csc<f64, i64>, b: &Csc<f64, i64>) -> Csc<f64, i64> {
     assert_eq!(a.nrows, b.nrows);
     assert_eq!(a.ncols, b.ncols);
     let ncols = a.ncols;
-    
+
     // Pass 1: count per column
     let counts: Vec<usize> = (0..ncols)
         .into_par_iter()
@@ -229,7 +229,7 @@ pub fn add_csc_f64_i64(a: &Csc<f64, i64>, b: &Csc<f64, i64>) -> Csc<f64, i64> {
             }
         })
         .collect();
-        
+
     let mut indptr = vec![0i64; ncols + 1];
     for j in 0..ncols {
         indptr[j + 1] = indptr[j] + usize_to_i64(counts[j]);
@@ -240,7 +240,7 @@ pub fn add_csc_f64_i64(a: &Csc<f64, i64>, b: &Csc<f64, i64>) -> Csc<f64, i64> {
     let pi_addr = indices.as_mut_ptr() as usize;
     let pv_addr = data.as_mut_ptr() as usize;
     let indptr_addr = indptr.as_ptr() as usize;
-    
+
     (0..ncols).into_par_iter().for_each(move |j| {
         let sa = i64_to_usize(a.indptr[j]);
         let ea = i64_to_usize(a.indptr[j + 1]);
@@ -279,7 +279,7 @@ pub fn add_coond_f64_i64(a: &CooNd<f64, i64>, b: &CooNd<f64, i64>) -> CooNd<f64,
     let ndim = a.shape.len();
     let nnz_a = a.data.len();
     let nnz_b = b.data.len();
-    
+
     // Build row-major strides for linearization
     let mut strides = vec![0usize; ndim];
     strides[ndim - 1] = 1;
@@ -289,16 +289,16 @@ pub fn add_coond_f64_i64(a: &CooNd<f64, i64>, b: &CooNd<f64, i64>) -> CooNd<f64,
             .expect("shape product overflow");
         strides[i] = s;
     }
-    
+
     // Accumulate entries from A and B via linearized keys
     let mut acc = UsizeF64Map::with_capacity(nnz_a + nnz_b);
     for k in 0..nnz_a {
         let mut lin = 0usize;
         let base = k * ndim;
-        for d in 0..ndim {
-            let idx = i64_to_usize(a.indices[base + d]);
+        for (axis, stride) in strides.iter().enumerate() {
+            let idx = i64_to_usize(a.indices[base + axis]);
             lin = lin
-                .checked_add(idx.checked_mul(strides[d]).expect("linear index overflow"))
+                .checked_add(idx.checked_mul(*stride).expect("linear index overflow"))
                 .expect("linear index overflow");
         }
         acc.insert_add(lin, a.data[k]);
@@ -306,15 +306,15 @@ pub fn add_coond_f64_i64(a: &CooNd<f64, i64>, b: &CooNd<f64, i64>) -> CooNd<f64,
     for k in 0..nnz_b {
         let mut lin = 0usize;
         let base = k * ndim;
-        for d in 0..ndim {
-            let idx = i64_to_usize(b.indices[base + d]);
+        for (axis, stride) in strides.iter().enumerate() {
+            let idx = i64_to_usize(b.indices[base + axis]);
             lin = lin
-                .checked_add(idx.checked_mul(strides[d]).expect("linear index overflow"))
+                .checked_add(idx.checked_mul(*stride).expect("linear index overflow"))
                 .expect("linear index overflow");
         }
         acc.insert_add(lin, b.data[k]);
     }
-    
+
     // Sort by linearized key and reconstruct indices
     let mut pairs = acc.pairs();
     pairs.sort_unstable_by_key(|(k, _)| *k);
@@ -329,11 +329,10 @@ pub fn add_coond_f64_i64(a: &CooNd<f64, i64>, b: &CooNd<f64, i64>) -> CooNd<f64,
     let mut out_indices = vec![0i64; out_nnz * ndim];
     for (pos, (mut lin, v)) in out_pairs.into_iter().enumerate() {
         let base = pos * ndim;
-        for d in 0..ndim {
-            let s = strides[d];
-            let idx = lin / s;
-            lin -= idx * s;
-            out_indices[base + d] = usize_to_i64(idx);
+        for (axis, stride) in strides.iter().enumerate() {
+            let idx = lin / *stride;
+            lin -= idx * *stride;
+            out_indices[base + axis] = usize_to_i64(idx);
         }
         out_data.push(v);
     }

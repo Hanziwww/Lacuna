@@ -4,8 +4,10 @@ from ..sparse.base import SparseArray, SparseMatrix
 
 
 def _numpy_xp():
-    import numpy.array_api as xp  # type: ignore
-
+    try:
+        import numpy.array_api as xp  # type: ignore
+    except Exception:  # ModuleNotFoundError or other import issues
+        import numpy as xp  # type: ignore
     return xp
 
 
@@ -20,7 +22,16 @@ def __array_namespace_info__() -> Dict[str, Any]:
             "boolean": "bool",
         },
         "capabilities": {
+            # Global
             "sparse": True,
+            # Implemented sparse-first ops in this release
+            "linalg": ["matmul", "matrix_transpose"],
+            "reductions": ["sum", "mean", "count_nonzero"],
+            "elementwise": ["add", "subtract", "multiply"],  # multiply includes COOND broadcast
+            # Creation helpers routed to sparse types
+            "creation": ["zeros", "eye"],
+            # Manipulation for COOND
+            "manipulation": ["permute_dims", "reshape"],
         },
     }
 
@@ -30,6 +41,7 @@ def __getattr__(name: str):
     attr = getattr(xp, name)
 
     if callable(attr):
+
         def guarded(*args, **kwargs):
             def _is_sparse(x: Any) -> bool:
                 return isinstance(x, (SparseArray, SparseMatrix))

@@ -1,8 +1,9 @@
+from . import _dispatch as _dp
 from . import _namespace as _ns
 
 
 def reshape(x, newshape):
-    return getattr(_ns, "reshape")(x, newshape)
+    return _dp.reshape(x, newshape)
 
 
 def squeeze(x, axis=None):
@@ -18,7 +19,7 @@ def moveaxis(x, source, destination):
 
 
 def permute_dims(x, axes):
-    return getattr(_ns, "permute_dims")(x, axes)
+    return _dp.permute_dims(x, axes)
 
 
 def stack(arrays, axis=0):
@@ -55,4 +56,3 @@ def repeat(x, repeats, axis=None):
 
 def tile(x, reps):
     return getattr(_ns, "tile")(x, reps)
-

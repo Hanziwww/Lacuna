@@ -30,113 +30,199 @@ use pyo3::prelude::*;
 use pyo3::types::PyModule;
 use pyo3::wrap_pyfunction;
 
-mod coo;
-mod csc;
-mod csr;
-mod functions;
+// Sparse array type definitions
+mod types;
+
+// Array API aligned module structure
+pub mod array_api;
 
 #[pymodule]
 fn _core(m: &Bound<PyModule>) -> PyResult<()> {
+    // Module metadata
     m.add("version", env!("CARGO_PKG_VERSION"))?;
-    m.add_class::<crate::csr::Csr64>()?;
-    m.add_class::<crate::csc::Csc64>()?;
-    m.add_class::<crate::coo::Coo64>()?;
-    m.add_function(wrap_pyfunction!(crate::functions::spmv_from_parts, m)?)?;
-    m.add_function(wrap_pyfunction!(crate::functions::spmm_from_parts, m)?)?;
-    m.add_function(wrap_pyfunction!(crate::functions::sum_from_parts, m)?)?;
-    m.add_function(wrap_pyfunction!(crate::functions::row_sums_from_parts, m)?)?;
-    m.add_function(wrap_pyfunction!(crate::functions::col_sums_from_parts, m)?)?;
+
+    // Sparse array types
+    m.add_class::<crate::types::Csr64>()?;
+    m.add_class::<crate::types::Csc64>()?;
+    m.add_class::<crate::types::Coo64>()?;
+
+    // ===== Linear Algebra =====
     m.add_function(wrap_pyfunction!(
-        crate::functions::coo_to_csc_from_parts,
-        m
-    )?)?;
-    // ND COO -> CSR/CSC conversions
-    m.add_function(wrap_pyfunction!(
-        crate::functions::coond_mode_to_csr_from_parts,
+        crate::array_api::linalg::spmv_from_parts,
         m
     )?)?;
     m.add_function(wrap_pyfunction!(
-        crate::functions::coond_mode_to_csc_from_parts,
+        crate::array_api::linalg::spmm_from_parts,
         m
     )?)?;
     m.add_function(wrap_pyfunction!(
-        crate::functions::coond_axes_to_csr_from_parts,
+        crate::array_api::linalg::transpose_from_parts,
         m
     )?)?;
     m.add_function(wrap_pyfunction!(
-        crate::functions::coond_axes_to_csc_from_parts,
-        m
-    )?)?;
-    // ND COO ops
-    m.add_function(wrap_pyfunction!(crate::functions::coond_sum_from_parts, m)?)?;
-    m.add_function(wrap_pyfunction!(
-        crate::functions::coond_mean_from_parts,
+        crate::array_api::linalg::transpose_csc_from_parts,
         m
     )?)?;
     m.add_function(wrap_pyfunction!(
-        crate::functions::coond_reduce_sum_axes_from_parts,
+        crate::array_api::linalg::transpose_coo_from_parts,
+        m
+    )?)?;
+
+    // ===== Statistical Reductions =====
+    m.add_function(wrap_pyfunction!(
+        crate::array_api::reduce::sum_from_parts,
         m
     )?)?;
     m.add_function(wrap_pyfunction!(
-        crate::functions::coond_reduce_mean_axes_from_parts,
+        crate::array_api::reduce::row_sums_from_parts,
         m
     )?)?;
     m.add_function(wrap_pyfunction!(
-        crate::functions::coond_permute_axes_from_parts,
+        crate::array_api::reduce::col_sums_from_parts,
         m
     )?)?;
     m.add_function(wrap_pyfunction!(
-        crate::functions::coond_reshape_from_parts,
+        crate::array_api::reduce::coond_sum_from_parts,
         m
     )?)?;
     m.add_function(wrap_pyfunction!(
-        crate::functions::coond_hadamard_broadcast_from_parts,
-        m
-    )?)?;
-    m.add_function(wrap_pyfunction!(crate::functions::transpose_from_parts, m)?)?;
-    m.add_function(wrap_pyfunction!(
-        crate::functions::transpose_csc_from_parts,
+        crate::array_api::reduce::coond_mean_from_parts,
         m
     )?)?;
     m.add_function(wrap_pyfunction!(
-        crate::functions::transpose_coo_from_parts,
-        m
-    )?)?;
-    m.add_function(wrap_pyfunction!(crate::functions::prune_from_parts, m)?)?;
-    m.add_function(wrap_pyfunction!(
-        crate::functions::eliminate_zeros_from_parts,
-        m
-    )?)?;
-    m.add_function(wrap_pyfunction!(crate::functions::add_from_parts, m)?)?;
-    m.add_function(wrap_pyfunction!(
-        crate::functions::mul_scalar_from_parts,
-        m
-    )?)?;
-    m.add_function(wrap_pyfunction!(crate::functions::sub_from_parts, m)?)?;
-    m.add_function(wrap_pyfunction!(crate::functions::hadamard_from_parts, m)?)?;
-    m.add_function(wrap_pyfunction!(
-        crate::functions::csr_to_csc_from_parts,
+        crate::array_api::reduce::coond_reduce_sum_axes_from_parts,
         m
     )?)?;
     m.add_function(wrap_pyfunction!(
-        crate::functions::csc_to_csr_from_parts,
+        crate::array_api::reduce::coond_reduce_mean_axes_from_parts,
+        m
+    )?)?;
+
+    // ===== Element-wise Operations =====
+    m.add_function(wrap_pyfunction!(
+        crate::array_api::elementwise::add_from_parts,
         m
     )?)?;
     m.add_function(wrap_pyfunction!(
-        crate::functions::csr_to_coo_from_parts,
+        crate::array_api::elementwise::sub_from_parts,
         m
     )?)?;
     m.add_function(wrap_pyfunction!(
-        crate::functions::csc_to_coo_from_parts,
+        crate::array_api::elementwise::hadamard_from_parts,
         m
     )?)?;
     m.add_function(wrap_pyfunction!(
-        crate::functions::coo_to_csr_from_parts,
+        crate::array_api::elementwise::mul_scalar_from_parts,
         m
     )?)?;
     m.add_function(wrap_pyfunction!(
-        crate::functions::coo_to_csc_from_parts,
+        crate::array_api::elementwise::coond_hadamard_broadcast_from_parts,
         m
     )?)?;
+
+    // ===== Manipulation =====
+    m.add_function(wrap_pyfunction!(
+        crate::array_api::manipulation::coond_permute_axes_from_parts,
+        m
+    )?)?;
+    m.add_function(wrap_pyfunction!(
+        crate::array_api::manipulation::coond_reshape_from_parts,
+        m
+    )?)?;
+
+    // ===== Utilities: Format Conversion & Cleanup =====
+    // Format conversions
+    m.add_function(wrap_pyfunction!(
+        crate::array_api::utility::csr_to_csc_from_parts,
+        m
+    )?)?;
+    m.add_function(wrap_pyfunction!(
+        crate::array_api::utility::csc_to_csr_from_parts,
+        m
+    )?)?;
+    m.add_function(wrap_pyfunction!(
+        crate::array_api::utility::csr_to_coo_from_parts,
+        m
+    )?)?;
+    m.add_function(wrap_pyfunction!(
+        crate::array_api::utility::csc_to_coo_from_parts,
+        m
+    )?)?;
+    m.add_function(wrap_pyfunction!(
+        crate::array_api::utility::coo_to_csr_from_parts,
+        m
+    )?)?;
+    m.add_function(wrap_pyfunction!(
+        crate::array_api::utility::coo_to_csc_from_parts,
+        m
+    )?)?;
+    m.add_function(wrap_pyfunction!(
+        crate::array_api::utility::coond_mode_to_csr_from_parts,
+        m
+    )?)?;
+    m.add_function(wrap_pyfunction!(
+        crate::array_api::utility::coond_mode_to_csc_from_parts,
+        m
+    )?)?;
+    m.add_function(wrap_pyfunction!(
+        crate::array_api::utility::coond_axes_to_csr_from_parts,
+        m
+    )?)?;
+    m.add_function(wrap_pyfunction!(
+        crate::array_api::utility::coond_axes_to_csc_from_parts,
+        m
+    )?)?;
+    // Cleanup
+    m.add_function(wrap_pyfunction!(
+        crate::array_api::utility::prune_from_parts,
+        m
+    )?)?;
+    m.add_function(wrap_pyfunction!(
+        crate::array_api::utility::eliminate_zeros_from_parts,
+        m
+    )?)?;
+
+    // ===== Array Creation =====
+    m.add_function(wrap_pyfunction!(crate::array_api::creation::zeros_csr, m)?)?;
+    m.add_function(wrap_pyfunction!(crate::array_api::creation::zeros_csc, m)?)?;
+    m.add_function(wrap_pyfunction!(crate::array_api::creation::zeros_coo, m)?)?;
+    m.add_function(wrap_pyfunction!(crate::array_api::creation::eye_csr, m)?)?;
+    m.add_function(wrap_pyfunction!(crate::array_api::creation::diag_csr, m)?)?;
+
+    // ===== Data Types =====
+    m.add_function(wrap_pyfunction!(
+        crate::array_api::dtypes::get_default_float_dtype,
+        m
+    )?)?;
+    m.add_function(wrap_pyfunction!(
+        crate::array_api::dtypes::get_default_int_dtype,
+        m
+    )?)?;
+    m.add_function(wrap_pyfunction!(
+        crate::array_api::dtypes::is_float_dtype,
+        m
+    )?)?;
+    m.add_function(wrap_pyfunction!(crate::array_api::dtypes::is_int_dtype, m)?)?;
+    m.add_function(wrap_pyfunction!(crate::array_api::dtypes::dtype_size, m)?)?;
+    m.add_function(wrap_pyfunction!(
+        crate::array_api::dtypes::promote_dtypes,
+        m
+    )?)?;
+
+    // ===== Devices =====
+    m.add_function(wrap_pyfunction!(
+        crate::array_api::devices::get_default_device,
+        m
+    )?)?;
+    m.add_function(wrap_pyfunction!(
+        crate::array_api::devices::is_valid_device,
+        m
+    )?)?;
+    m.add_function(wrap_pyfunction!(
+        crate::array_api::devices::list_devices,
+        m
+    )?)?;
+    m.add_function(wrap_pyfunction!(crate::array_api::devices::device_info, m)?)?;
+
     Ok(())
 }

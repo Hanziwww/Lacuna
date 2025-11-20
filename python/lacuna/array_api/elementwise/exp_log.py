@@ -27,4 +27,3 @@ def log10(x):
 
 def logaddexp(x, y):
     return getattr(_ns, "logaddexp")(x, y)
-
