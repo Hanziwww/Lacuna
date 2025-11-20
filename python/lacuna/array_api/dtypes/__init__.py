@@ -1,6 +1,6 @@
-from ..sparse import CSR
-from ..sparse.base import SparseArray, SparseMatrix
-from . import _namespace as _ns
+from ...sparse import CSR
+from ...sparse.base import SparseArray, SparseMatrix
+from .. import _namespace as _ns
 
 
 def astype(x, dtype, /, *, copy=True):

@@ -1,7 +1,7 @@
 __array_api_version__ = "2024.12"
 
 from .constants import e, inf, nan, newaxis, pi
-from .creation import (
+from .creation.__init__ import (
     arange,
     asarray,
     empty,
@@ -19,7 +19,7 @@ from .creation import (
     zeros,
     zeros_like,
 )
-from .dtypes import (
+from .dtypes.__init__ import (
     astype,
     can_cast,
     finfo,
@@ -95,9 +95,9 @@ from .elementwise.trig_hyp import (
     tan,
     tanh,
 )
-from .indexing import take, take_along_axis
-from .linalg import matmul, matrix_transpose, tensordot, vecdot
-from .manipulation import (
+from .indexing.__init__ import take, take_along_axis
+from .linalg.__init__ import matmul, matrix_transpose, tensordot, vecdot
+from .manipulation.__init__ import (
     broadcast_arrays,
     broadcast_to,
     concat,
@@ -113,7 +113,7 @@ from .manipulation import (
     tile,
     unstack,
 )
-from .reductions import (
+from .reductions.__init__ import (
     all,
     any,
     cumulative_prod,
@@ -127,7 +127,7 @@ from .reductions import (
     sum,
     var,
 )
-from .searching import (
+from .searching.__init__ import (
     argmax,
     argmin,
     count_nonzero,
@@ -135,8 +135,8 @@ from .searching import (
     searchsorted,
     where,
 )
-from .sets import unique_all, unique_counts, unique_inverse, unique_values
-from .sorting import argsort, sort
+from .sets.__init__ import unique_all, unique_counts, unique_inverse, unique_values
+from .sorting.__init__ import argsort, sort
 
 
 def __getattr__(name: str):

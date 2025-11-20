@@ -1,0 +1,147 @@
+import numpy as np
+
+from ...sparse import COO, COOND, CSC, CSR
+from .._namespace import _numpy_xp
+
+
+def _normalize_axes_2d(axis):
+    if axis is None:
+        return None
+    if isinstance(axis, (list, tuple)):
+        if len(axis) == 0:
+            return tuple()
+        axes = tuple(int(a) for a in axis)
+    else:
+        axes = (int(axis),)
+    norm = []
+    for a in axes:
+        if a < 0:
+            a = 2 + a
+        if a not in (0, 1):
+            raise ValueError("axis must be in {-2,-1,0,1} or tuple thereof for 2D inputs")
+        if a not in norm:
+            norm.append(a)
+    return tuple(sorted(norm))
+
+
+def _normalize_axes_nd(axis, ndim: int):
+    if axis is None:
+        return None
+    if isinstance(axis, (list, tuple)):
+        if len(axis) == 0:
+            return tuple()
+        axes = tuple(int(a) for a in axis)
+    else:
+        axes = (int(axis),)
+    norm = []
+    for a in axes:
+        if a < 0:
+            a = ndim + a
+        if not (0 <= a < ndim):
+            raise ValueError("axis out of range")
+        if a not in norm:
+            norm.append(a)
+    return tuple(sorted(norm))
+
+
+def _coond_with_keepdims(x: COOND, reduced: COOND, reduced_axes: tuple[int, ...]) -> COOND:
+    orig_ndim = x.ndim
+    rem_axes = [i for i in range(orig_ndim) if i not in reduced_axes]
+    nnz = reduced.nnz
+    rem_ndim = len(rem_axes)
+    if rem_ndim == 0:
+        new_shape = tuple(1 for _ in range(orig_ndim))
+        return COOND(new_shape, np.zeros((0,), dtype=np.int64), reduced.data, check=False)
+    idx = reduced.indices.reshape(nnz, rem_ndim)
+    new_idx = np.zeros((nnz, orig_ndim), dtype=np.int64)
+    new_idx[:, rem_axes] = idx
+    new_indices_flat = new_idx.reshape(-1)
+    reduced_shape_iter = iter(reduced.shape)
+    new_shape_list = []
+    for d in range(orig_ndim):
+        if d in reduced_axes:
+            new_shape_list.append(1)
+        else:
+            new_shape_list.append(int(next(reduced_shape_iter)))
+    return COOND(tuple(new_shape_list), new_indices_flat, reduced.data, check=False)
+
+
+# ===== Reductions =====
+
+
+def sum(x, axis=None, keepdims=False):
+    if isinstance(x, (CSR, CSC, COO)):
+        norm = _normalize_axes_2d(axis)
+        nrows, ncols = x.shape
+        if norm is None or norm == (0, 1):
+            s = x.sum(None)
+            return np.array(s).reshape((1, 1)) if keepdims else s
+        if norm == ():
+            raise NotImplementedError(
+                "sum with axis=() (no reduction) is not implemented for sparse inputs"
+            )
+        if norm == (0,):
+            s = np.asarray(x.sum(0))
+            return s.reshape((1, ncols)) if keepdims else s
+        if norm == (1,):
+            s = np.asarray(x.sum(1))
+            return s.reshape((nrows, 1)) if keepdims else s
+        raise ValueError("invalid axis for 2D input")
+
+    if isinstance(x, COOND):
+        norm = _normalize_axes_nd(axis, x.ndim)
+        if norm is None:
+            s = x.sum()
+            if keepdims:
+                return np.array(s).reshape(tuple(1 for _ in range(x.ndim)))
+            return s
+        if norm == ():
+            raise NotImplementedError(
+                "sum with axis=() (no reduction) is not implemented for COOND"
+            )
+        reduced = x.reduce_sum_axes(list(norm))
+        if keepdims:
+            return _coond_with_keepdims(x, reduced, norm)
+        return reduced
+
+    xp = _numpy_xp()
+    return xp.sum(x, axis=axis, keepdims=keepdims)
+
+
+def mean(x, axis=None, keepdims=False):
+    if isinstance(x, (CSR, CSC, COO)):
+        norm = _normalize_axes_2d(axis)
+        nrows, ncols = x.shape
+        if norm is None or norm == (0, 1):
+            m = float(x.sum(None)) / float(nrows * ncols)
+            return np.array(m).reshape((1, 1)) if keepdims else m
+        if norm == ():
+            raise NotImplementedError(
+                "mean with axis=() (no reduction) is not implemented for sparse inputs"
+            )
+        if norm == (0,):
+            s = np.asarray(x.sum(0)) / float(nrows)
+            return s.reshape((1, ncols)) if keepdims else s
+        if norm == (1,):
+            s = np.asarray(x.sum(1)) / float(ncols)
+            return s.reshape((nrows, 1)) if keepdims else s
+        raise ValueError("invalid axis for 2D input")
+
+    if isinstance(x, COOND):
+        norm = _normalize_axes_nd(axis, x.ndim)
+        if norm is None:
+            m = x.mean()
+            if keepdims:
+                return np.array(m).reshape(tuple(1 for _ in range(x.ndim)))
+            return m
+        if norm == ():
+            raise NotImplementedError(
+                "mean with axis=() (no reduction) is not implemented for COOND"
+            )
+        reduced = x.reduce_mean_axes(list(norm))
+        if keepdims:
+            return _coond_with_keepdims(x, reduced, norm)
+        return reduced
+
+    xp = _numpy_xp()
+    return xp.mean(x, axis=axis, keepdims=keepdims)

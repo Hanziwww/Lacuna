@@ -1,4 +1,4 @@
-from . import _namespace as _ns
+from .. import _namespace as _ns
 
 
 def asarray(obj, /, *, dtype=None, device=None, copy=None):
@@ -31,7 +31,7 @@ def zeros(shape, *, dtype=None, device=None):
     """
     import numpy as np
 
-    from ..sparse import CSR
+    from ...sparse import CSR
 
     if dtype is None:
         dtype = np.float64
@@ -115,7 +115,7 @@ def eye(n_rows, n_cols=None, k=0, *, dtype=None, device=None):
     """
     import numpy as np
 
-    from ..sparse import CSR
+    from ...sparse import CSR
 
     if dtype is None:
         dtype = np.float64

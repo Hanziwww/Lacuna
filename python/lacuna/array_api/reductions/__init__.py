@@ -1,5 +1,5 @@
-from . import _dispatch as _dp
-from . import _namespace as _ns
+from .. import _dispatch as _dp
+from .. import _namespace as _ns
 
 
 def sum(x, axis=None, keepdims=False):

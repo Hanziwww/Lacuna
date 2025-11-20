@@ -1,4 +1,4 @@
-from . import _namespace as _ns
+from .. import _namespace as _ns
 
 
 def take(x, indices, /, *, axis=None):
