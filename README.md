@@ -14,9 +14,10 @@
   <a href="https://crates.io/crates/wide"><img src="https://img.shields.io/badge/SIMD-wide-0A7BBB" alt="SIMD wide" /></a>
   <a href="https://crates.io/crates/rayon"><img src="https://img.shields.io/badge/Rayon-parallelism-5C6BC0" alt="Rayon parallelism" /></a>
   <a href="https://numpy.org/"><img src="https://img.shields.io/badge/NumPy-compatible-013243?logo=numpy&logoColor=white" alt="NumPy compatible" /></a>
+  <a href="https://data-apis.org/array-api/latest/"><img src="https://img.shields.io/badge/Python%20Array-API%20Stdard-DC143C" alt="Python Array API compliant" /></a>
 </p>
 
-> ⚠ Status: Work in progress. APIs and performance characteristics may change without notice. **Contact me if you'd like to join the development**! View [docs](https://lacuna.hanziwww.me).
+> ⚠ Status: Work in progress. APIs and performance characteristics may change without notice. Contact us if you'd like to join the development.
 
 ## Table of Contents
 
@@ -53,6 +54,7 @@
 - Python API
 
   - Simple, NumPy-friendly classes with zero-copy reads of input buffers when safe
+  - Array API namespace `lacuna.array_api`, fully compliant with the Python Array API Standard
 
 ## Quick start (development install)
 
@@ -213,6 +215,8 @@ What Lacuna offers today:
   - COOND: sum/mean, reduce over axes, permute axes, reshape, broadcasting Hadamard, unfold to CSR/CSC.
 - **Simple Python ergonomics**
   - NumPy-friendly classes, zero-copy buffer reads when safe, explicit float64 values and int64 indices, thread control via `set_num_threads`.
+- **Array API compliance**
+  - Fully compliant `lacuna.array_api` namespace with xp-style dispatch; interoperates with Array API–aware libraries.
 
 ## Benchmarks
 
