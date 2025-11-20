@@ -35,7 +35,7 @@ jobs:
       - name: Build and install extension
         run: |
           maturin build --release
-          pip install --no-index --find-links target/wheels/ lacuna
+          pip install --find-links target/wheels/ lacuna-sparse
 
       - name: Run Python tests (pytest)
         run: |
