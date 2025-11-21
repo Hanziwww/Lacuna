@@ -7,7 +7,7 @@
 )]
 
 use crate::linalg::matrix_transpose::{transpose_csc_f64_i64, transpose_f64_i64};
-use crate::utility::util::{i64_to_usize, STRIPE};
+use crate::utility::util::{STRIPE, i64_to_usize};
 use lacuna_core::{Coo, CooNd, Csc, Csr};
 use rayon::prelude::*;
 use std::cell::RefCell;
@@ -110,7 +110,10 @@ pub fn row_vars_f64(a: &Csr<f64, i64>, correction: f64) -> Vec<f64> {
 
 #[must_use]
 pub fn row_stds_f64(a: &Csr<f64, i64>, correction: f64) -> Vec<f64> {
-    row_vars_f64(a, correction).into_iter().map(std_from_var).collect()
+    row_vars_f64(a, correction)
+        .into_iter()
+        .map(std_from_var)
+        .collect()
 }
 
 #[must_use]

@@ -1,6 +1,7 @@
 import numpy as np
+
 import lacuna.array_api as xp
-from lacuna.sparse import CSR, CSC
+from lacuna.sparse import CSC, CSR
 
 
 def sample_csr():

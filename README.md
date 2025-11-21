@@ -166,31 +166,20 @@ Compared to existing options:
 
   * 2D, linear-algebra–first, mature and battle-tested.
   * Not natively N-D; tensor/array semantics (broadcasting, axis ops) often need reshaping or densifying.
+  * No Python Array API Standard compliance
 * **PyData/Sparse (`sparse`)**
 
   * N-D `COO` with NumPy-like semantics and broadcasting.
   * Often slower than SciPy on core kernels; smaller API surface and ecosystem.
+  * No Python Array API Standard compliance
 
-Lacuna offers:
+**Lacuna offers:**
 
-* **Unified N-D and 2D**
-
-  * COOND tensors plus CSR/CSC/COO matrices, with unfolding from N-D to 2D (mode or grouped axes).
-* **High-performance native kernels**
-
-  * Rust + Rayon + SIMD, with nnz-aware work partitioning and cache-friendly accumulators for SpMV/SpMM, reductions, and transforms.
-* **Practical 2D ops**
-
-  * CSR/CSC/COO: SpMV, SpMM, add/sub/Hadamard, transpose, prune, eliminate_zeros, row/col sums, total sum.
-* **NumPy-like N-D ops**
-
-  * COOND: sum/mean, axis reductions, permute, reshape, broadcasting Hadamard, unfold to CSR/CSC.
-* **Simple Python ergonomics**
-
-  * NumPy-style classes, zero-copy where safe, float64 values, int64 indices, `set_num_threads` for control.
-* **Array API compliance**
-
-  * Fully compliant `lacuna.array_api` namespace with xp-style dispatch for Array API–aware libraries.
+* Unified N-D and 2D
+* High-performance Rust native kernels
+* Practical 2D ops
+* NumPy compliance
+* Python Array API Standard compliance
 
 ## Benchmarks
 

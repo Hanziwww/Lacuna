@@ -1,14 +1,36 @@
 use lacuna_core::{Coo, Csc, Csr};
 use lacuna_kernels::{
+    col_prods_coo_f64,
+    col_prods_csc_f64,
+    col_prods_f64,
+    col_stds_coo_f64,
+    col_stds_csc_f64,
+    col_stds_f64,
+    col_vars_coo_f64,
+    col_vars_csc_f64,
+    col_vars_f64,
+    prod_coo_f64,
+    prod_csc_f64,
     // prod
-    prod_f64, row_prods_f64, col_prods_f64, prod_csc_f64, row_prods_csc_f64, col_prods_csc_f64,
-    prod_coo_f64, row_prods_coo_f64, col_prods_coo_f64,
-    // var/std (CSR)
-    var_f64, std_f64, row_vars_f64, row_stds_f64, col_vars_f64, col_stds_f64,
-    // var/std (CSC)
-    var_csc_f64, std_csc_f64, row_vars_csc_f64, row_stds_csc_f64, col_vars_csc_f64, col_stds_csc_f64,
+    prod_f64,
+    row_prods_coo_f64,
+    row_prods_csc_f64,
+    row_prods_f64,
+    row_stds_coo_f64,
+    row_stds_csc_f64,
+    row_stds_f64,
+    row_vars_coo_f64,
+    row_vars_csc_f64,
+    row_vars_f64,
+    std_coo_f64,
+    std_csc_f64,
+    std_f64,
     // var/std (COO)
-    var_coo_f64, std_coo_f64, row_vars_coo_f64, row_stds_coo_f64, col_vars_coo_f64, col_stds_coo_f64,
+    var_coo_f64,
+    // var/std (CSC)
+    var_csc_f64,
+    // var/std (CSR)
+    var_f64,
 };
 
 fn make_sample_csr() -> Csr<f64, i64> {

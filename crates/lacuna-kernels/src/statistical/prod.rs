@@ -7,7 +7,7 @@
 )]
 
 use crate::linalg::matrix_transpose::{transpose_csc_f64_i64, transpose_f64_i64};
-use crate::utility::util::{i64_to_usize, StripeAccs, STRIPE};
+use crate::utility::util::{STRIPE, StripeAccs, i64_to_usize};
 use lacuna_core::{Coo, CooNd, Csc, Csr};
 use rayon::prelude::*;
 use std::cell::RefCell;

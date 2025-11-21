@@ -60,22 +60,22 @@ pub use statistical::sum::{
 };
 
 pub use statistical::minmax::{
-    col_maxs_csc_f64, col_maxs_coo_f64, col_maxs_f64, col_mins_csc_f64, col_mins_coo_f64,
-    col_mins_f64, max_csc_f64, max_coo_f64, max_f64, min_csc_f64, min_coo_f64, min_f64,
-    row_maxs_csc_f64, row_maxs_coo_f64, row_maxs_f64, row_mins_csc_f64, row_mins_coo_f64,
+    col_maxs_coo_f64, col_maxs_csc_f64, col_maxs_f64, col_mins_coo_f64, col_mins_csc_f64,
+    col_mins_f64, max_coo_f64, max_csc_f64, max_f64, min_coo_f64, min_csc_f64, min_f64,
+    row_maxs_coo_f64, row_maxs_csc_f64, row_maxs_f64, row_mins_coo_f64, row_mins_csc_f64,
     row_mins_f64,
 };
 
 pub use statistical::prod::{
-    col_prods_csc_f64, col_prods_f64, col_prods_coo_f64, prod_csc_f64, prod_coo_f64, prod_f64,
-    prod_coond_f64, row_prods_csc_f64, row_prods_coo_f64, row_prods_f64,
+    col_prods_coo_f64, col_prods_csc_f64, col_prods_f64, prod_coo_f64, prod_coond_f64,
+    prod_csc_f64, prod_f64, row_prods_coo_f64, row_prods_csc_f64, row_prods_f64,
 };
 
 pub use statistical::varstd::{
-    col_stds_csc_f64, col_stds_coo_f64, col_stds_f64, col_vars_csc_f64, col_vars_coo_f64,
-    col_vars_f64, row_stds_csc_f64, row_stds_coo_f64, row_stds_f64, row_vars_csc_f64,
-    row_vars_coo_f64, row_vars_f64, std_csc_f64, std_coo_f64, std_f64, std_coond_f64,
-    var_csc_f64, var_coo_f64, var_f64, var_coond_f64,
+    col_stds_coo_f64, col_stds_csc_f64, col_stds_f64, col_vars_coo_f64, col_vars_csc_f64,
+    col_vars_f64, row_stds_coo_f64, row_stds_csc_f64, row_stds_f64, row_vars_coo_f64,
+    row_vars_csc_f64, row_vars_f64, std_coo_f64, std_coond_f64, std_csc_f64, std_f64, var_coo_f64,
+    var_coond_f64, var_csc_f64, var_f64,
 };
 
 pub use manipulation::permute_dims::permute_axes_coond_f64_i64;

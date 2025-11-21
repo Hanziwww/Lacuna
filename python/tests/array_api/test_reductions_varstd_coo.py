@@ -1,4 +1,5 @@
 import numpy as np
+
 import lacuna.array_api as xp
 from lacuna.sparse import COO
 
