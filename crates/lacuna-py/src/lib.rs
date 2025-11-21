@@ -213,6 +213,40 @@ fn _core(m: &Bound<PyModule>) -> PyResult<()> {
         m
     )?)?;
 
+    // Product (CSR/CSC/COO/COOND)
+    m.add_function(wrap_pyfunction!(crate::array_api::reduce::prod_from_parts, m)?)?;
+    m.add_function(wrap_pyfunction!(crate::array_api::reduce::row_prods_from_parts, m)?)?;
+    m.add_function(wrap_pyfunction!(crate::array_api::reduce::col_prods_from_parts, m)?)?;
+    m.add_function(wrap_pyfunction!(crate::array_api::reduce::prod_csc_from_parts, m)?)?;
+    m.add_function(wrap_pyfunction!(crate::array_api::reduce::row_prods_csc_from_parts, m)?)?;
+    m.add_function(wrap_pyfunction!(crate::array_api::reduce::col_prods_csc_from_parts, m)?)?;
+    m.add_function(wrap_pyfunction!(crate::array_api::reduce::prod_coo_from_parts, m)?)?;
+    m.add_function(wrap_pyfunction!(crate::array_api::reduce::row_prods_coo_from_parts, m)?)?;
+    m.add_function(wrap_pyfunction!(crate::array_api::reduce::col_prods_coo_from_parts, m)?)?;
+    m.add_function(wrap_pyfunction!(crate::array_api::reduce::coond_prod_from_parts, m)?)?;
+
+    // Variance / Standard Deviation (CSR/CSC/COO/COOND)
+    m.add_function(wrap_pyfunction!(crate::array_api::reduce::var_from_parts, m)?)?;
+    m.add_function(wrap_pyfunction!(crate::array_api::reduce::std_from_parts, m)?)?;
+    m.add_function(wrap_pyfunction!(crate::array_api::reduce::row_vars_from_parts, m)?)?;
+    m.add_function(wrap_pyfunction!(crate::array_api::reduce::row_stds_from_parts, m)?)?;
+    m.add_function(wrap_pyfunction!(crate::array_api::reduce::col_vars_from_parts, m)?)?;
+    m.add_function(wrap_pyfunction!(crate::array_api::reduce::col_stds_from_parts, m)?)?;
+    m.add_function(wrap_pyfunction!(crate::array_api::reduce::var_csc_from_parts, m)?)?;
+    m.add_function(wrap_pyfunction!(crate::array_api::reduce::std_csc_from_parts, m)?)?;
+    m.add_function(wrap_pyfunction!(crate::array_api::reduce::row_vars_csc_from_parts, m)?)?;
+    m.add_function(wrap_pyfunction!(crate::array_api::reduce::row_stds_csc_from_parts, m)?)?;
+    m.add_function(wrap_pyfunction!(crate::array_api::reduce::col_vars_csc_from_parts, m)?)?;
+    m.add_function(wrap_pyfunction!(crate::array_api::reduce::col_stds_csc_from_parts, m)?)?;
+    m.add_function(wrap_pyfunction!(crate::array_api::reduce::var_coo_from_parts, m)?)?;
+    m.add_function(wrap_pyfunction!(crate::array_api::reduce::std_coo_from_parts, m)?)?;
+    m.add_function(wrap_pyfunction!(crate::array_api::reduce::row_vars_coo_from_parts, m)?)?;
+    m.add_function(wrap_pyfunction!(crate::array_api::reduce::row_stds_coo_from_parts, m)?)?;
+    m.add_function(wrap_pyfunction!(crate::array_api::reduce::col_vars_coo_from_parts, m)?)?;
+    m.add_function(wrap_pyfunction!(crate::array_api::reduce::col_stds_coo_from_parts, m)?)?;
+    m.add_function(wrap_pyfunction!(crate::array_api::reduce::coond_var_from_parts, m)?)?;
+    m.add_function(wrap_pyfunction!(crate::array_api::reduce::coond_std_from_parts, m)?)?;
+
     // ===== Element-wise Operations =====
     m.add_function(wrap_pyfunction!(
         crate::array_api::elementwise::add_from_parts,

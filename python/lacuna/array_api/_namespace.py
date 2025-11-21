@@ -24,7 +24,16 @@ def __array_namespace_info__() -> Dict[str, Any]:
         "capabilities": {
             "sparse": True,
             "linalg": ["matmul", "matrix_transpose", "tensordot", "vecdot"],
-            "reductions": ["sum", "mean", "min", "max", "count_nonzero"],
+            "reductions": [
+                "sum",
+                "mean",
+                "min",
+                "max",
+                "count_nonzero",
+                "prod",
+                "var",
+                "std",
+            ],
             "elementwise": ["add", "subtract", "multiply"],
             "creation": ["zeros", "eye"],
             "manipulation": ["permute_dims", "reshape"],

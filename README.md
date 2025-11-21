@@ -32,29 +32,10 @@
 
 ## Features
 
-- Formats
-
-  - CSR, CSC, COO (2D)
-  - COOND (N-D COO tensors)
-- Kernels (f64 values, i64 indices)
-
-  - SpMV, SpMM
-  - Reductions: sum, row/col sums
-  - Transpose
-  - Arithmetic: add, sub, Hadamard (elementwise)
-  - Cleanup: prune(eps), eliminate_zeros
-  - More comming soon...
-- ND COO operations
-
-  - sum, mean
-  - reduce_sum_axes / reduce_mean_axes
-  - permute_axes, reshape
-  - hadamard_broadcast
-  - unfold to CSR/CSC (mode and grouped axes)
-- Python API
-
-  - Simple, NumPy-friendly classes with zero-copy reads of input buffers when safe
-  - Array API namespace `lacuna.array_api`, fully compliant with the Python Array API Standard
+* Supports CSR, CSC, COO and N-D COO sparse tensors
+* Provides high-performance kernels by Rust
+* Compatible with NumPy array format
+* Compatible with [Python array API standard](https://data-apis.org/array-api/latest/index.html)
 
 ## Quick start (development install)
 
@@ -72,22 +53,6 @@ python -m venv .venv
 
 python -m pip install -U maturin
 maturin develop -m crates/lacuna-py/Cargo.toml --release
-```
-
-Verify:
-
-```powershell
-python -c "import lacuna as la; print('threads:', la.get_num_threads())"
-```
-
-Thread control:
-
-```python
-import lacuna as la
-
-# Set number of Rayon threads used by Rust kernels
-la.set_num_threads(8)
-print("threads:", la.get_num_threads())
 ```
 
 ## Basic usage

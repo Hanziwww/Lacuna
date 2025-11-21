@@ -11,6 +11,14 @@ use lacuna_kernels::{
     min_coo_f64, min_f64, reduce_mean_axes_coond_f64_i64, reduce_sum_axes_coond_f64_i64,
     row_maxs_csc_f64, row_maxs_coo_f64, row_maxs_f64, row_mins_csc_f64, row_mins_coo_f64,
     row_mins_f64, row_sums_f64, sum_coond_f64, sum_f64,
+    // prod
+    col_prods_csc_f64, col_prods_coo_f64, col_prods_f64, prod_csc_f64, prod_coo_f64, prod_coond_f64,
+    prod_f64, row_prods_csc_f64, row_prods_coo_f64, row_prods_f64,
+    // var/std
+    col_stds_csc_f64, col_stds_coo_f64, col_stds_f64, col_vars_csc_f64, col_vars_coo_f64,
+    col_vars_f64, row_stds_csc_f64, row_stds_coo_f64, row_stds_f64, row_vars_csc_f64,
+    row_vars_coo_f64, row_vars_f64, std_csc_f64, std_coo_f64, std_f64, std_coond_f64, var_csc_f64,
+    var_coo_f64, var_f64, var_coond_f64,
 };
 
 use super::helpers::{
@@ -581,6 +589,699 @@ pub(crate) fn coond_reduce_sum_axes_from_parts<'py>(
         PyArray1::from_vec(py, res.indices),
         PyArray1::from_vec(py, res.data),
     ))
+}
+
+// ===== Product (CSR/CSC/COO/COOND) =====
+
+#[pyfunction]
+pub(crate) fn prod_from_parts<'py>(
+    py: Python<'py>,
+    nrows: usize,
+    ncols: usize,
+    indptr: PyReadonlyArray1<'py, i64>,
+    indices: PyReadonlyArray1<'py, i64>,
+    data: PyReadonlyArray1<'py, f64>,
+    check: bool,
+) -> PyResult<f64> {
+    let a = Csr::from_parts(
+        nrows,
+        ncols,
+        indptr.as_slice()?.to_vec(),
+        indices.as_slice()?.to_vec(),
+        data.as_slice()?.to_vec(),
+        check,
+    )
+    .map_err(PyErr::new::<pyo3::exceptions::PyValueError, _>)?;
+    Ok(py.detach(|| prod_f64(&a)))
+}
+
+#[pyfunction]
+pub(crate) fn row_prods_from_parts<'py>(
+    py: Python<'py>,
+    nrows: usize,
+    ncols: usize,
+    indptr: PyReadonlyArray1<'py, i64>,
+    indices: PyReadonlyArray1<'py, i64>,
+    data: PyReadonlyArray1<'py, f64>,
+    check: bool,
+) -> PyResult<Bound<'py, PyArray1<f64>>> {
+    let a = Csr::from_parts(
+        nrows,
+        ncols,
+        indptr.as_slice()?.to_vec(),
+        indices.as_slice()?.to_vec(),
+        data.as_slice()?.to_vec(),
+        check,
+    )
+    .map_err(PyErr::new::<pyo3::exceptions::PyValueError, _>)?;
+    let v = py.detach(|| row_prods_f64(&a));
+    Ok(PyArray1::from_vec(py, v))
+}
+
+#[pyfunction]
+pub(crate) fn col_prods_from_parts<'py>(
+    py: Python<'py>,
+    nrows: usize,
+    ncols: usize,
+    indptr: PyReadonlyArray1<'py, i64>,
+    indices: PyReadonlyArray1<'py, i64>,
+    data: PyReadonlyArray1<'py, f64>,
+    check: bool,
+) -> PyResult<Bound<'py, PyArray1<f64>>> {
+    let a = Csr::from_parts(
+        nrows,
+        ncols,
+        indptr.as_slice()?.to_vec(),
+        indices.as_slice()?.to_vec(),
+        data.as_slice()?.to_vec(),
+        check,
+    )
+    .map_err(PyErr::new::<pyo3::exceptions::PyValueError, _>)?;
+    let v = py.detach(|| col_prods_f64(&a));
+    Ok(PyArray1::from_vec(py, v))
+}
+
+#[pyfunction]
+pub(crate) fn prod_csc_from_parts<'py>(
+    py: Python<'py>,
+    nrows: usize,
+    ncols: usize,
+    indptr: PyReadonlyArray1<'py, i64>,
+    indices: PyReadonlyArray1<'py, i64>,
+    data: PyReadonlyArray1<'py, f64>,
+    check: bool,
+) -> PyResult<f64> {
+    let a = Csc::from_parts(
+        nrows,
+        ncols,
+        indptr.as_slice()?.to_vec(),
+        indices.as_slice()?.to_vec(),
+        data.as_slice()?.to_vec(),
+        check,
+    )
+    .map_err(PyErr::new::<pyo3::exceptions::PyValueError, _>)?;
+    Ok(py.detach(|| prod_csc_f64(&a)))
+}
+
+#[pyfunction]
+pub(crate) fn row_prods_csc_from_parts<'py>(
+    py: Python<'py>,
+    nrows: usize,
+    ncols: usize,
+    indptr: PyReadonlyArray1<'py, i64>,
+    indices: PyReadonlyArray1<'py, i64>,
+    data: PyReadonlyArray1<'py, f64>,
+    check: bool,
+) -> PyResult<Bound<'py, PyArray1<f64>>> {
+    let a = Csc::from_parts(
+        nrows,
+        ncols,
+        indptr.as_slice()?.to_vec(),
+        indices.as_slice()?.to_vec(),
+        data.as_slice()?.to_vec(),
+        check,
+    )
+    .map_err(PyErr::new::<pyo3::exceptions::PyValueError, _>)?;
+    let v = py.detach(|| row_prods_csc_f64(&a));
+    Ok(PyArray1::from_vec(py, v))
+}
+
+#[pyfunction]
+pub(crate) fn col_prods_csc_from_parts<'py>(
+    py: Python<'py>,
+    nrows: usize,
+    ncols: usize,
+    indptr: PyReadonlyArray1<'py, i64>,
+    indices: PyReadonlyArray1<'py, i64>,
+    data: PyReadonlyArray1<'py, f64>,
+    check: bool,
+) -> PyResult<Bound<'py, PyArray1<f64>>> {
+    let a = Csc::from_parts(
+        nrows,
+        ncols,
+        indptr.as_slice()?.to_vec(),
+        indices.as_slice()?.to_vec(),
+        data.as_slice()?.to_vec(),
+        check,
+    )
+    .map_err(PyErr::new::<pyo3::exceptions::PyValueError, _>)?;
+    let v = py.detach(|| col_prods_csc_f64(&a));
+    Ok(PyArray1::from_vec(py, v))
+}
+
+#[pyfunction]
+pub(crate) fn prod_coo_from_parts<'py>(
+    py: Python<'py>,
+    nrows: usize,
+    ncols: usize,
+    row: PyReadonlyArray1<'py, i64>,
+    col: PyReadonlyArray1<'py, i64>,
+    data: PyReadonlyArray1<'py, f64>,
+    check: bool,
+) -> PyResult<f64> {
+    let a = Coo::from_parts(
+        nrows,
+        ncols,
+        row.as_slice()?.to_vec(),
+        col.as_slice()?.to_vec(),
+        data.as_slice()?.to_vec(),
+        check,
+    )
+    .map_err(PyErr::new::<pyo3::exceptions::PyValueError, _>)?;
+    Ok(py.detach(|| prod_coo_f64(&a)))
+}
+
+#[pyfunction]
+pub(crate) fn row_prods_coo_from_parts<'py>(
+    py: Python<'py>,
+    nrows: usize,
+    ncols: usize,
+    row: PyReadonlyArray1<'py, i64>,
+    col: PyReadonlyArray1<'py, i64>,
+    data: PyReadonlyArray1<'py, f64>,
+    check: bool,
+) -> PyResult<Bound<'py, PyArray1<f64>>> {
+    let a = Coo::from_parts(
+        nrows,
+        ncols,
+        row.as_slice()?.to_vec(),
+        col.as_slice()?.to_vec(),
+        data.as_slice()?.to_vec(),
+        check,
+    )
+    .map_err(PyErr::new::<pyo3::exceptions::PyValueError, _>)?;
+    let v = py.detach(|| row_prods_coo_f64(&a));
+    Ok(PyArray1::from_vec(py, v))
+}
+
+#[pyfunction]
+pub(crate) fn col_prods_coo_from_parts<'py>(
+    py: Python<'py>,
+    nrows: usize,
+    ncols: usize,
+    row: PyReadonlyArray1<'py, i64>,
+    col: PyReadonlyArray1<'py, i64>,
+    data: PyReadonlyArray1<'py, f64>,
+    check: bool,
+) -> PyResult<Bound<'py, PyArray1<f64>>> {
+    let a = Coo::from_parts(
+        nrows,
+        ncols,
+        row.as_slice()?.to_vec(),
+        col.as_slice()?.to_vec(),
+        data.as_slice()?.to_vec(),
+        check,
+    )
+    .map_err(PyErr::new::<pyo3::exceptions::PyValueError, _>)?;
+    let v = py.detach(|| col_prods_coo_f64(&a));
+    Ok(PyArray1::from_vec(py, v))
+}
+
+#[pyfunction]
+pub(crate) fn coond_prod_from_parts<'py>(
+    py: Python<'py>,
+    shape: PyReadonlyArray1<'py, i64>,
+    indices: PyReadonlyArray1<'py, i64>,
+    data: PyReadonlyArray1<'py, f64>,
+    check: bool,
+) -> PyResult<f64> {
+    let shape_us = convert_shape_i64_to_usize(shape.as_slice()?)?;
+    let a = CooNd::from_parts(
+        shape_us,
+        indices.as_slice()?.to_vec(),
+        data.as_slice()?.to_vec(),
+        check,
+    )
+    .map_err(PyErr::new::<pyo3::exceptions::PyValueError, _>)?;
+    Ok(py.detach(|| prod_coond_f64(&a)))
+}
+
+// ===== Variance / Standard Deviation =====
+
+#[pyfunction]
+pub(crate) fn var_from_parts<'py>(
+    py: Python<'py>,
+    nrows: usize,
+    ncols: usize,
+    indptr: PyReadonlyArray1<'py, i64>,
+    indices: PyReadonlyArray1<'py, i64>,
+    data: PyReadonlyArray1<'py, f64>,
+    correction: f64,
+    check: bool,
+) -> PyResult<f64> {
+    let a = Csr::from_parts(
+        nrows,
+        ncols,
+        indptr.as_slice()?.to_vec(),
+        indices.as_slice()?.to_vec(),
+        data.as_slice()?.to_vec(),
+        check,
+    )
+    .map_err(PyErr::new::<pyo3::exceptions::PyValueError, _>)?;
+    Ok(py.detach(|| var_f64(&a, correction)))
+}
+
+#[pyfunction]
+pub(crate) fn std_from_parts<'py>(
+    py: Python<'py>,
+    nrows: usize,
+    ncols: usize,
+    indptr: PyReadonlyArray1<'py, i64>,
+    indices: PyReadonlyArray1<'py, i64>,
+    data: PyReadonlyArray1<'py, f64>,
+    correction: f64,
+    check: bool,
+) -> PyResult<f64> {
+    let a = Csr::from_parts(
+        nrows,
+        ncols,
+        indptr.as_slice()?.to_vec(),
+        indices.as_slice()?.to_vec(),
+        data.as_slice()?.to_vec(),
+        check,
+    )
+    .map_err(PyErr::new::<pyo3::exceptions::PyValueError, _>)?;
+    Ok(py.detach(|| std_f64(&a, correction)))
+}
+
+#[pyfunction]
+pub(crate) fn row_vars_from_parts<'py>(
+    py: Python<'py>,
+    nrows: usize,
+    ncols: usize,
+    indptr: PyReadonlyArray1<'py, i64>,
+    indices: PyReadonlyArray1<'py, i64>,
+    data: PyReadonlyArray1<'py, f64>,
+    correction: f64,
+    check: bool,
+) -> PyResult<Bound<'py, PyArray1<f64>>> {
+    let a = Csr::from_parts(
+        nrows,
+        ncols,
+        indptr.as_slice()?.to_vec(),
+        indices.as_slice()?.to_vec(),
+        data.as_slice()?.to_vec(),
+        check,
+    )
+    .map_err(PyErr::new::<pyo3::exceptions::PyValueError, _>)?;
+    let v = py.detach(|| row_vars_f64(&a, correction));
+    Ok(PyArray1::from_vec(py, v))
+}
+
+#[pyfunction]
+pub(crate) fn row_stds_from_parts<'py>(
+    py: Python<'py>,
+    nrows: usize,
+    ncols: usize,
+    indptr: PyReadonlyArray1<'py, i64>,
+    indices: PyReadonlyArray1<'py, i64>,
+    data: PyReadonlyArray1<'py, f64>,
+    correction: f64,
+    check: bool,
+) -> PyResult<Bound<'py, PyArray1<f64>>> {
+    let a = Csr::from_parts(
+        nrows,
+        ncols,
+        indptr.as_slice()?.to_vec(),
+        indices.as_slice()?.to_vec(),
+        data.as_slice()?.to_vec(),
+        check,
+    )
+    .map_err(PyErr::new::<pyo3::exceptions::PyValueError, _>)?;
+    let v = py.detach(|| row_stds_f64(&a, correction));
+    Ok(PyArray1::from_vec(py, v))
+}
+
+#[pyfunction]
+pub(crate) fn col_vars_from_parts<'py>(
+    py: Python<'py>,
+    nrows: usize,
+    ncols: usize,
+    indptr: PyReadonlyArray1<'py, i64>,
+    indices: PyReadonlyArray1<'py, i64>,
+    data: PyReadonlyArray1<'py, f64>,
+    correction: f64,
+    check: bool,
+) -> PyResult<Bound<'py, PyArray1<f64>>> {
+    let a = Csr::from_parts(
+        nrows,
+        ncols,
+        indptr.as_slice()?.to_vec(),
+        indices.as_slice()?.to_vec(),
+        data.as_slice()?.to_vec(),
+        check,
+    )
+    .map_err(PyErr::new::<pyo3::exceptions::PyValueError, _>)?;
+    let v = py.detach(|| col_vars_f64(&a, correction));
+    Ok(PyArray1::from_vec(py, v))
+}
+
+#[pyfunction]
+pub(crate) fn col_stds_from_parts<'py>(
+    py: Python<'py>,
+    nrows: usize,
+    ncols: usize,
+    indptr: PyReadonlyArray1<'py, i64>,
+    indices: PyReadonlyArray1<'py, i64>,
+    data: PyReadonlyArray1<'py, f64>,
+    correction: f64,
+    check: bool,
+) -> PyResult<Bound<'py, PyArray1<f64>>> {
+    let a = Csr::from_parts(
+        nrows,
+        ncols,
+        indptr.as_slice()?.to_vec(),
+        indices.as_slice()?.to_vec(),
+        data.as_slice()?.to_vec(),
+        check,
+    )
+    .map_err(PyErr::new::<pyo3::exceptions::PyValueError, _>)?;
+    let v = py.detach(|| col_stds_f64(&a, correction));
+    Ok(PyArray1::from_vec(py, v))
+}
+
+#[pyfunction]
+pub(crate) fn var_csc_from_parts<'py>(
+    py: Python<'py>,
+    nrows: usize,
+    ncols: usize,
+    indptr: PyReadonlyArray1<'py, i64>,
+    indices: PyReadonlyArray1<'py, i64>,
+    data: PyReadonlyArray1<'py, f64>,
+    correction: f64,
+    check: bool,
+) -> PyResult<f64> {
+    let a = Csc::from_parts(
+        nrows,
+        ncols,
+        indptr.as_slice()?.to_vec(),
+        indices.as_slice()?.to_vec(),
+        data.as_slice()?.to_vec(),
+        check,
+    )
+    .map_err(PyErr::new::<pyo3::exceptions::PyValueError, _>)?;
+    Ok(py.detach(|| var_csc_f64(&a, correction)))
+}
+
+#[pyfunction]
+pub(crate) fn std_csc_from_parts<'py>(
+    py: Python<'py>,
+    nrows: usize,
+    ncols: usize,
+    indptr: PyReadonlyArray1<'py, i64>,
+    indices: PyReadonlyArray1<'py, i64>,
+    data: PyReadonlyArray1<'py, f64>,
+    correction: f64,
+    check: bool,
+) -> PyResult<f64> {
+    let a = Csc::from_parts(
+        nrows,
+        ncols,
+        indptr.as_slice()?.to_vec(),
+        indices.as_slice()?.to_vec(),
+        data.as_slice()?.to_vec(),
+        check,
+    )
+    .map_err(PyErr::new::<pyo3::exceptions::PyValueError, _>)?;
+    Ok(py.detach(|| std_csc_f64(&a, correction)))
+}
+
+#[pyfunction]
+pub(crate) fn row_vars_csc_from_parts<'py>(
+    py: Python<'py>,
+    nrows: usize,
+    ncols: usize,
+    indptr: PyReadonlyArray1<'py, i64>,
+    indices: PyReadonlyArray1<'py, i64>,
+    data: PyReadonlyArray1<'py, f64>,
+    correction: f64,
+    check: bool,
+) -> PyResult<Bound<'py, PyArray1<f64>>> {
+    let a = Csc::from_parts(
+        nrows,
+        ncols,
+        indptr.as_slice()?.to_vec(),
+        indices.as_slice()?.to_vec(),
+        data.as_slice()?.to_vec(),
+        check,
+    )
+    .map_err(PyErr::new::<pyo3::exceptions::PyValueError, _>)?;
+    let v = py.detach(|| row_vars_csc_f64(&a, correction));
+    Ok(PyArray1::from_vec(py, v))
+}
+
+#[pyfunction]
+pub(crate) fn row_stds_csc_from_parts<'py>(
+    py: Python<'py>,
+    nrows: usize,
+    ncols: usize,
+    indptr: PyReadonlyArray1<'py, i64>,
+    indices: PyReadonlyArray1<'py, i64>,
+    data: PyReadonlyArray1<'py, f64>,
+    correction: f64,
+    check: bool,
+) -> PyResult<Bound<'py, PyArray1<f64>>> {
+    let a = Csc::from_parts(
+        nrows,
+        ncols,
+        indptr.as_slice()?.to_vec(),
+        indices.as_slice()?.to_vec(),
+        data.as_slice()?.to_vec(),
+        check,
+    )
+    .map_err(PyErr::new::<pyo3::exceptions::PyValueError, _>)?;
+    let v = py.detach(|| row_stds_csc_f64(&a, correction));
+    Ok(PyArray1::from_vec(py, v))
+}
+
+#[pyfunction]
+pub(crate) fn col_vars_csc_from_parts<'py>(
+    py: Python<'py>,
+    nrows: usize,
+    ncols: usize,
+    indptr: PyReadonlyArray1<'py, i64>,
+    indices: PyReadonlyArray1<'py, i64>,
+    data: PyReadonlyArray1<'py, f64>,
+    correction: f64,
+    check: bool,
+) -> PyResult<Bound<'py, PyArray1<f64>>> {
+    let a = Csc::from_parts(
+        nrows,
+        ncols,
+        indptr.as_slice()?.to_vec(),
+        indices.as_slice()?.to_vec(),
+        data.as_slice()?.to_vec(),
+        check,
+    )
+    .map_err(PyErr::new::<pyo3::exceptions::PyValueError, _>)?;
+    let v = py.detach(|| col_vars_csc_f64(&a, correction));
+    Ok(PyArray1::from_vec(py, v))
+}
+
+#[pyfunction]
+pub(crate) fn col_stds_csc_from_parts<'py>(
+    py: Python<'py>,
+    nrows: usize,
+    ncols: usize,
+    indptr: PyReadonlyArray1<'py, i64>,
+    indices: PyReadonlyArray1<'py, i64>,
+    data: PyReadonlyArray1<'py, f64>,
+    correction: f64,
+    check: bool,
+) -> PyResult<Bound<'py, PyArray1<f64>>> {
+    let a = Csc::from_parts(
+        nrows,
+        ncols,
+        indptr.as_slice()?.to_vec(),
+        indices.as_slice()?.to_vec(),
+        data.as_slice()?.to_vec(),
+        check,
+    )
+    .map_err(PyErr::new::<pyo3::exceptions::PyValueError, _>)?;
+    let v = py.detach(|| col_stds_csc_f64(&a, correction));
+    Ok(PyArray1::from_vec(py, v))
+}
+
+#[pyfunction]
+pub(crate) fn var_coo_from_parts<'py>(
+    py: Python<'py>,
+    nrows: usize,
+    ncols: usize,
+    row: PyReadonlyArray1<'py, i64>,
+    col: PyReadonlyArray1<'py, i64>,
+    data: PyReadonlyArray1<'py, f64>,
+    correction: f64,
+    check: bool,
+) -> PyResult<f64> {
+    let a = Coo::from_parts(
+        nrows,
+        ncols,
+        row.as_slice()?.to_vec(),
+        col.as_slice()?.to_vec(),
+        data.as_slice()?.to_vec(),
+        check,
+    )
+    .map_err(PyErr::new::<pyo3::exceptions::PyValueError, _>)?;
+    Ok(py.detach(|| var_coo_f64(&a, correction)))
+}
+
+#[pyfunction]
+pub(crate) fn std_coo_from_parts<'py>(
+    py: Python<'py>,
+    nrows: usize,
+    ncols: usize,
+    row: PyReadonlyArray1<'py, i64>,
+    col: PyReadonlyArray1<'py, i64>,
+    data: PyReadonlyArray1<'py, f64>,
+    correction: f64,
+    check: bool,
+) -> PyResult<f64> {
+    let a = Coo::from_parts(
+        nrows,
+        ncols,
+        row.as_slice()?.to_vec(),
+        col.as_slice()?.to_vec(),
+        data.as_slice()?.to_vec(),
+        check,
+    )
+    .map_err(PyErr::new::<pyo3::exceptions::PyValueError, _>)?;
+    Ok(py.detach(|| std_coo_f64(&a, correction)))
+}
+
+#[pyfunction]
+pub(crate) fn row_vars_coo_from_parts<'py>(
+    py: Python<'py>,
+    nrows: usize,
+    ncols: usize,
+    row: PyReadonlyArray1<'py, i64>,
+    col: PyReadonlyArray1<'py, i64>,
+    data: PyReadonlyArray1<'py, f64>,
+    correction: f64,
+    check: bool,
+) -> PyResult<Bound<'py, PyArray1<f64>>> {
+    let a = Coo::from_parts(
+        nrows,
+        ncols,
+        row.as_slice()?.to_vec(),
+        col.as_slice()?.to_vec(),
+        data.as_slice()?.to_vec(),
+        check,
+    )
+    .map_err(PyErr::new::<pyo3::exceptions::PyValueError, _>)?;
+    let v = py.detach(|| row_vars_coo_f64(&a, correction));
+    Ok(PyArray1::from_vec(py, v))
+}
+
+#[pyfunction]
+pub(crate) fn row_stds_coo_from_parts<'py>(
+    py: Python<'py>,
+    nrows: usize,
+    ncols: usize,
+    row: PyReadonlyArray1<'py, i64>,
+    col: PyReadonlyArray1<'py, i64>,
+    data: PyReadonlyArray1<'py, f64>,
+    correction: f64,
+    check: bool,
+) -> PyResult<Bound<'py, PyArray1<f64>>> {
+    let a = Coo::from_parts(
+        nrows,
+        ncols,
+        row.as_slice()?.to_vec(),
+        col.as_slice()?.to_vec(),
+        data.as_slice()?.to_vec(),
+        check,
+    )
+    .map_err(PyErr::new::<pyo3::exceptions::PyValueError, _>)?;
+    let v = py.detach(|| row_stds_coo_f64(&a, correction));
+    Ok(PyArray1::from_vec(py, v))
+}
+
+#[pyfunction]
+pub(crate) fn col_vars_coo_from_parts<'py>(
+    py: Python<'py>,
+    nrows: usize,
+    ncols: usize,
+    row: PyReadonlyArray1<'py, i64>,
+    col: PyReadonlyArray1<'py, i64>,
+    data: PyReadonlyArray1<'py, f64>,
+    correction: f64,
+    check: bool,
+) -> PyResult<Bound<'py, PyArray1<f64>>> {
+    let a = Coo::from_parts(
+        nrows,
+        ncols,
+        row.as_slice()?.to_vec(),
+        col.as_slice()?.to_vec(),
+        data.as_slice()?.to_vec(),
+        check,
+    )
+    .map_err(PyErr::new::<pyo3::exceptions::PyValueError, _>)?;
+    let v = py.detach(|| col_vars_coo_f64(&a, correction));
+    Ok(PyArray1::from_vec(py, v))
+}
+
+#[pyfunction]
+pub(crate) fn col_stds_coo_from_parts<'py>(
+    py: Python<'py>,
+    nrows: usize,
+    ncols: usize,
+    row: PyReadonlyArray1<'py, i64>,
+    col: PyReadonlyArray1<'py, i64>,
+    data: PyReadonlyArray1<'py, f64>,
+    correction: f64,
+    check: bool,
+) -> PyResult<Bound<'py, PyArray1<f64>>> {
+    let a = Coo::from_parts(
+        nrows,
+        ncols,
+        row.as_slice()?.to_vec(),
+        col.as_slice()?.to_vec(),
+        data.as_slice()?.to_vec(),
+        check,
+    )
+    .map_err(PyErr::new::<pyo3::exceptions::PyValueError, _>)?;
+    let v = py.detach(|| col_stds_coo_f64(&a, correction));
+    Ok(PyArray1::from_vec(py, v))
+}
+
+#[pyfunction]
+pub(crate) fn coond_var_from_parts<'py>(
+    py: Python<'py>,
+    shape: PyReadonlyArray1<'py, i64>,
+    indices: PyReadonlyArray1<'py, i64>,
+    data: PyReadonlyArray1<'py, f64>,
+    correction: f64,
+    check: bool,
+) -> PyResult<f64> {
+    let shape_us = convert_shape_i64_to_usize(shape.as_slice()?)?;
+    let a = CooNd::from_parts(
+        shape_us,
+        indices.as_slice()?.to_vec(),
+        data.as_slice()?.to_vec(),
+        check,
+    )
+    .map_err(PyErr::new::<pyo3::exceptions::PyValueError, _>)?;
+    Ok(py.detach(|| var_coond_f64(&a, correction)))
+}
+
+#[pyfunction]
+pub(crate) fn coond_std_from_parts<'py>(
+    py: Python<'py>,
+    shape: PyReadonlyArray1<'py, i64>,
+    indices: PyReadonlyArray1<'py, i64>,
+    data: PyReadonlyArray1<'py, f64>,
+    correction: f64,
+    check: bool,
+) -> PyResult<f64> {
+    let shape_us = convert_shape_i64_to_usize(shape.as_slice()?)?;
+    let a = CooNd::from_parts(
+        shape_us,
+        indices.as_slice()?.to_vec(),
+        data.as_slice()?.to_vec(),
+        check,
+    )
+    .map_err(PyErr::new::<pyo3::exceptions::PyValueError, _>)?;
+    Ok(py.detach(|| std_coond_f64(&a, correction)))
 }
 
 /// Mean over specified axes in COO-ND array

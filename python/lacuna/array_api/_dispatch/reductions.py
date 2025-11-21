@@ -151,6 +151,166 @@ def mean(x, axis=None, keepdims=False):
     return xp.mean(x, axis=axis, keepdims=keepdims)
 
 
+def prod(x, axis=None, keepdims=False):
+    if isinstance(x, (CSR, CSC, COO)):
+        if _core is None:
+            raise RuntimeError("native core is not available")
+        norm = _normalize_axes_2d(axis)
+        nrows, ncols = x.shape
+        if norm is None or norm == (0, 1):
+            if isinstance(x, CSR):
+                v = _core.prod_from_parts(x.shape[0], x.shape[1], x.indptr, x.indices, x.data, False)
+            elif isinstance(x, CSC):
+                v = _core.prod_csc_from_parts(x.shape[0], x.shape[1], x.indptr, x.indices, x.data, False)
+            else:
+                v = _core.prod_coo_from_parts(x.shape[0], x.shape[1], x.row, x.col, x.data, False)
+            return np.array(v).reshape((1, 1)) if keepdims else float(v)
+        if norm == ():
+            raise NotImplementedError(
+                "prod with axis=() (no reduction) is not implemented for sparse inputs"
+            )
+        if norm == (0,):
+            if isinstance(x, CSR):
+                v = _core.col_prods_from_parts(x.shape[0], x.shape[1], x.indptr, x.indices, x.data, False)
+            elif isinstance(x, CSC):
+                v = _core.col_prods_csc_from_parts(x.shape[0], x.shape[1], x.indptr, x.indices, x.data, False)
+            else:
+                v = _core.col_prods_coo_from_parts(x.shape[0], x.shape[1], x.row, x.col, x.data, False)
+            v = np.asarray(v)
+            return v.reshape((1, ncols)) if keepdims else v
+        if norm == (1,):
+            if isinstance(x, CSR):
+                v = _core.row_prods_from_parts(x.shape[0], x.shape[1], x.indptr, x.indices, x.data, False)
+            elif isinstance(x, CSC):
+                v = _core.row_prods_csc_from_parts(x.shape[0], x.shape[1], x.indptr, x.indices, x.data, False)
+            else:
+                v = _core.row_prods_coo_from_parts(x.shape[0], x.shape[1], x.row, x.col, x.data, False)
+            v = np.asarray(v)
+            return v.reshape((nrows, 1)) if keepdims else v
+        raise ValueError("invalid axis for 2D input")
+
+    if isinstance(x, COOND):
+        if axis is None:
+            v = _core.coond_prod_from_parts(x.shape, x.indices, x.data, False)
+            if keepdims:
+                return np.array(v).reshape(tuple(1 for _ in range(x.ndim)))
+            return v
+        if axis == ():
+            raise NotImplementedError("prod with axis=() (no reduction) is not implemented for COOND")
+        raise NotImplementedError("prod with axis for COOND is not yet implemented")
+
+    xp = _numpy_xp()
+    return xp.prod(x, axis=axis, keepdims=keepdims)
+
+
+def var(x, axis=None, correction=0.0, keepdims=False):
+    if isinstance(x, (CSR, CSC, COO)):
+        if _core is None:
+            raise RuntimeError("native core is not available")
+        norm = _normalize_axes_2d(axis)
+        nrows, ncols = x.shape
+        if norm is None or norm == (0, 1):
+            if isinstance(x, CSR):
+                v = _core.var_from_parts(x.shape[0], x.shape[1], x.indptr, x.indices, x.data, float(correction), False)
+            elif isinstance(x, CSC):
+                v = _core.var_csc_from_parts(x.shape[0], x.shape[1], x.indptr, x.indices, x.data, float(correction), False)
+            else:
+                v = _core.var_coo_from_parts(x.shape[0], x.shape[1], x.row, x.col, x.data, float(correction), False)
+            return np.array(v).reshape((1, 1)) if keepdims else float(v)
+        if norm == ():
+            raise NotImplementedError(
+                "var with axis=() (no reduction) is not implemented for sparse inputs"
+            )
+        if norm == (0,):
+            if isinstance(x, CSR):
+                v = _core.col_vars_from_parts(x.shape[0], x.shape[1], x.indptr, x.indices, x.data, float(correction), False)
+            elif isinstance(x, CSC):
+                v = _core.col_vars_csc_from_parts(x.shape[0], x.shape[1], x.indptr, x.indices, x.data, float(correction), False)
+            else:
+                v = _core.col_vars_coo_from_parts(x.shape[0], x.shape[1], x.row, x.col, x.data, float(correction), False)
+            v = np.asarray(v)
+            return v.reshape((1, ncols)) if keepdims else v
+        if norm == (1,):
+            if isinstance(x, CSR):
+                v = _core.row_vars_from_parts(x.shape[0], x.shape[1], x.indptr, x.indices, x.data, float(correction), False)
+            elif isinstance(x, CSC):
+                v = _core.row_vars_csc_from_parts(x.shape[0], x.shape[1], x.indptr, x.indices, x.data, float(correction), False)
+            else:
+                v = _core.row_vars_coo_from_parts(x.shape[0], x.shape[1], x.row, x.col, x.data, float(correction), False)
+            v = np.asarray(v)
+            return v.reshape((nrows, 1)) if keepdims else v
+        raise ValueError("invalid axis for 2D input")
+
+    if isinstance(x, COOND):
+        if axis is None:
+            v = _core.coond_var_from_parts(x.shape, x.indices, x.data, float(correction), False)
+            if keepdims:
+                return np.array(v).reshape(tuple(1 for _ in range(x.ndim)))
+            return v
+        if axis == ():
+            raise NotImplementedError(
+                "var with axis=() (no reduction) is not implemented for COOND"
+            )
+        raise NotImplementedError("var with axis for COOND is not yet implemented")
+
+    xp = _numpy_xp()
+    return xp.var(x, axis=axis, ddof=correction, keepdims=keepdims)
+
+
+def std(x, axis=None, correction=0.0, keepdims=False):
+    if isinstance(x, (CSR, CSC, COO)):
+        if _core is None:
+            raise RuntimeError("native core is not available")
+        norm = _normalize_axes_2d(axis)
+        nrows, ncols = x.shape
+        if norm is None or norm == (0, 1):
+            if isinstance(x, CSR):
+                v = _core.std_from_parts(x.shape[0], x.shape[1], x.indptr, x.indices, x.data, float(correction), False)
+            elif isinstance(x, CSC):
+                v = _core.std_csc_from_parts(x.shape[0], x.shape[1], x.indptr, x.indices, x.data, float(correction), False)
+            else:
+                v = _core.std_coo_from_parts(x.shape[0], x.shape[1], x.row, x.col, x.data, float(correction), False)
+            return np.array(v).reshape((1, 1)) if keepdims else float(v)
+        if norm == ():
+            raise NotImplementedError(
+                "std with axis=() (no reduction) is not implemented for sparse inputs"
+            )
+        if norm == (0,):
+            if isinstance(x, CSR):
+                v = _core.col_stds_from_parts(x.shape[0], x.shape[1], x.indptr, x.indices, x.data, float(correction), False)
+            elif isinstance(x, CSC):
+                v = _core.col_stds_csc_from_parts(x.shape[0], x.shape[1], x.indptr, x.indices, x.data, float(correction), False)
+            else:
+                v = _core.col_stds_coo_from_parts(x.shape[0], x.shape[1], x.row, x.col, x.data, float(correction), False)
+            v = np.asarray(v)
+            return v.reshape((1, ncols)) if keepdims else v
+        if norm == (1,):
+            if isinstance(x, CSR):
+                v = _core.row_stds_from_parts(x.shape[0], x.shape[1], x.indptr, x.indices, x.data, float(correction), False)
+            elif isinstance(x, CSC):
+                v = _core.row_stds_csc_from_parts(x.shape[0], x.shape[1], x.indptr, x.indices, x.data, float(correction), False)
+            else:
+                v = _core.row_stds_coo_from_parts(x.shape[0], x.shape[1], x.row, x.col, x.data, float(correction), False)
+            v = np.asarray(v)
+            return v.reshape((nrows, 1)) if keepdims else v
+        raise ValueError("invalid axis for 2D input")
+
+    if isinstance(x, COOND):
+        if axis is None:
+            v = _core.coond_std_from_parts(x.shape, x.indices, x.data, float(correction), False)
+            if keepdims:
+                return np.array(v).reshape(tuple(1 for _ in range(x.ndim)))
+            return v
+        if axis == ():
+            raise NotImplementedError(
+                "std with axis=() (no reduction) is not implemented for COOND"
+            )
+        raise NotImplementedError("std with axis for COOND is not yet implemented")
+
+    xp = _numpy_xp()
+    return xp.std(x, axis=axis, ddof=correction, keepdims=keepdims)
+
+
 def min(x, axis=None, keepdims=False):
     if isinstance(x, (CSR, CSC, COO)):
         if _core is None:
