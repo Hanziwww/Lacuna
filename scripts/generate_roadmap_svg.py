@@ -1,4 +1,5 @@
 import argparse
+import os
 import re
 from html import escape
 from pathlib import Path
@@ -200,13 +201,43 @@ def main():
     p.add_argument("--input", default="docs/TODO.md")
     p.add_argument("--output", default="docs/roadmap.svg")
     args = p.parse_args()
-    
-    # Resolve paths relative to repository root (parent of scripts directory)
-    script_dir = Path(__file__).parent
+
+    # Resolve paths robustly: prefer GITHUB_WORKSPACE, then repo root (parent of scripts), then CWD
+    script_dir = Path(__file__).resolve().parent
     repo_root = script_dir.parent
-    input_path = repo_root / args.input if not Path(args.input).is_absolute() else Path(args.input)
-    output_path = repo_root / args.output if not Path(args.output).is_absolute() else Path(args.output)
-    
+    workspace = Path(os.getenv("GITHUB_WORKSPACE", str(repo_root)))
+
+    # Output path
+    if Path(args.output).is_absolute():
+        output_path = Path(args.output)
+    else:
+        output_path = (workspace / args.output).resolve()
+
+    # Input path candidates
+    if Path(args.input).is_absolute():
+        input_candidates = [Path(args.input)]
+    else:
+        rel = Path(args.input)
+        input_candidates = [
+            (workspace / rel).resolve(),
+            (repo_root / rel).resolve(),
+            (Path.cwd() / rel).resolve(),
+            rel.resolve() if rel.exists() else rel,
+        ]
+
+    input_path = next((p for p in input_candidates if isinstance(p, Path) and p.exists()), None)
+    if input_path is None:
+        # Graceful fallback: emit placeholder SVG and exit without error
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        output_path.write_text(
+            "<svg xmlns='http://www.w3.org/2000/svg' width='700' height='100'>"
+            "<text x='12' y='40' style='font: 600 14px system-ui' fill='#c2410c'>Input file not found: </text>"
+            f"<text x='12' y='70' style='font: 600 14px system-ui' fill='#111'>{escape(str(args.input))}</text>"
+            "</svg>",
+            encoding="utf-8",
+        )
+        return
+
     md = input_path.read_text(encoding="utf-8")
     # only parse section 1) Not-yet-implemented by namespace
     m = re.search(r"^##\s*1\)\s*Not-yet-implemented.*$", md, re.M)
