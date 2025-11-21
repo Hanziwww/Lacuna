@@ -1,6 +1,7 @@
 import argparse
 import os
 import re
+import sys
 from html import escape
 from pathlib import Path
 
@@ -200,6 +201,11 @@ def main():
     p = argparse.ArgumentParser()
     p.add_argument("--input", default="docs/TODO.md")
     p.add_argument("--output", default="docs/roadmap.svg")
+    p.add_argument(
+        "--strict",
+        action="store_true",
+        help="Exit with non-zero code if input missing or no sections found",
+    )
     args = p.parse_args()
 
     # Resolve paths robustly: prefer GITHUB_WORKSPACE, then repo root (parent of scripts), then CWD
@@ -227,7 +233,10 @@ def main():
 
     input_path = next((p for p in input_candidates if isinstance(p, Path) and p.exists()), None)
     if input_path is None:
-        # Graceful fallback: emit placeholder SVG and exit without error
+        if args.strict:
+            print(f"ERROR: Input file not found: {args.input}", file=sys.stderr)
+            raise SystemExit(2)
+        # Graceful fallback: emit placeholder SVG
         output_path.parent.mkdir(parents=True, exist_ok=True)
         output_path.write_text(
             "<svg xmlns='http://www.w3.org/2000/svg' width='700' height='100'>"
@@ -248,6 +257,9 @@ def main():
         md_slice = md
     sections = parse_sections(md_slice)
     if not sections:
+        if args.strict:
+            print("ERROR: No sections found in input document", file=sys.stderr)
+            raise SystemExit(3)
         # Fallback: produce an empty SVG with message
         output_path.write_text(
             "<svg xmlns='http://www.w3.org/2000/svg' width='600' height='80'><text x='10' y='40'>No sections found in docs/TODO.md</text></svg>",
