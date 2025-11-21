@@ -34,7 +34,7 @@ jobs:
       - name: Generate roadmap.svg
         working-directory: ${{ github.workspace }}
         run: |
-          python scripts/generate_roadmap_svg.py --strict --input "docs/TODO.md" --output "docs/roadmap.svg"
+          python scripts/generate_roadmap_svg.py --strict --input "$GITHUB_WORKSPACE/docs/TODO.md" --output "$GITHUB_WORKSPACE/docs/roadmap.svg"
 
       - name: Upload artifact (PR only)
         if: ${{ github.event_name == 'pull_request' }}
