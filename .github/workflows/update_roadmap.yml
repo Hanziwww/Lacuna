@@ -22,9 +22,19 @@ jobs:
         with:
           python-version: '3.x'
 
-      - name: Generate roadmap.svg
+      - name: Debug workspace and docs
         run: |
-          python scripts/generate_roadmap_svg.py --input docs/TODO.md --output docs/roadmap.svg
+          echo "pwd: $(pwd)"
+          ls -la
+          echo "docs directory:"
+          ls -la docs || true
+          echo "Search for TODO.md:"
+          find . -maxdepth 3 -type f -name "TODO.md" -print || true
+
+      - name: Generate roadmap.svg
+        working-directory: ${{ github.workspace }}
+        run: |
+          python scripts/generate_roadmap_svg.py --input "$GITHUB_WORKSPACE/docs/TODO.md" --output "$GITHUB_WORKSPACE/docs/roadmap.svg"
 
       - name: Upload artifact (PR only)
         if: ${{ github.event_name == 'pull_request' }}
