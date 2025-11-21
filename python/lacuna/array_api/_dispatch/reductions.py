@@ -366,6 +366,232 @@ def std(x, axis=None, correction=0.0, keepdims=False):
     return xp.std(x, axis=axis, ddof=correction, keepdims=keepdims)
 
 
+def all(x, axis=None, keepdims=False):
+    if isinstance(x, (CSR, CSC, COO)):
+        if _core is None:
+            raise RuntimeError("native core is not available")
+        norm = _normalize_axes_2d(axis)
+        nrows, ncols = x.shape
+        if norm is None or norm == (0, 1):
+            if isinstance(x, CSR):
+                v = _core.all_from_parts(nrows, ncols, x.indptr, x.indices, x.data, False)
+            elif isinstance(x, CSC):
+                v = _core.all_csc_from_parts(nrows, ncols, x.indptr, x.indices, x.data, False)
+            else:
+                v = _core.all_coo_from_parts(nrows, ncols, x.row, x.col, x.data, False)
+            return np.array(bool(v)).reshape((1, 1)) if keepdims else bool(v)
+        if norm == ():
+            raise NotImplementedError(
+                "all with axis=() (no reduction) is not implemented for sparse inputs"
+            )
+        if norm == (0,):
+            if isinstance(x, CSR):
+                v = _core.col_alls_from_parts(nrows, ncols, x.indptr, x.indices, x.data, False)
+            elif isinstance(x, CSC):
+                v = _core.col_alls_csc_from_parts(nrows, ncols, x.indptr, x.indices, x.data, False)
+            else:
+                v = _core.col_alls_coo_from_parts(nrows, ncols, x.row, x.col, x.data, False)
+            v = np.asarray(v, dtype=bool)
+            return v.reshape((1, ncols)) if keepdims else v
+        if norm == (1,):
+            if isinstance(x, CSR):
+                v = _core.row_alls_from_parts(nrows, ncols, x.indptr, x.indices, x.data, False)
+            elif isinstance(x, CSC):
+                v = _core.row_alls_csc_from_parts(nrows, ncols, x.indptr, x.indices, x.data, False)
+            else:
+                v = _core.row_alls_coo_from_parts(nrows, ncols, x.row, x.col, x.data, False)
+            v = np.asarray(v, dtype=bool)
+            return v.reshape((nrows, 1)) if keepdims else v
+        raise ValueError("invalid axis for 2D input")
+
+    if isinstance(x, COOND):
+        if axis is None:
+            v = _core.coond_all_from_parts(x.shape, x.indices, x.data, False)
+            if keepdims:
+                return np.array(bool(v)).reshape(tuple(1 for _ in range(x.ndim)))
+            return bool(v)
+        if axis == ():
+            raise NotImplementedError(
+                "all with axis=() (no reduction) is not implemented for COOND"
+            )
+        raise NotImplementedError("all with axis for COOND is not yet implemented")
+
+    xp = _numpy_xp()
+    return xp.all(x, axis=axis, keepdims=keepdims)
+
+
+def any(x, axis=None, keepdims=False):
+    if isinstance(x, (CSR, CSC, COO)):
+        if _core is None:
+            raise RuntimeError("native core is not available")
+        norm = _normalize_axes_2d(axis)
+        nrows, ncols = x.shape
+        if norm is None or norm == (0, 1):
+            if isinstance(x, CSR):
+                v = _core.any_from_parts(nrows, ncols, x.indptr, x.indices, x.data, False)
+            elif isinstance(x, CSC):
+                v = _core.any_csc_from_parts(nrows, ncols, x.indptr, x.indices, x.data, False)
+            else:
+                v = _core.any_coo_from_parts(nrows, ncols, x.row, x.col, x.data, False)
+            return np.array(bool(v)).reshape((1, 1)) if keepdims else bool(v)
+        if norm == ():
+            raise NotImplementedError(
+                "any with axis=() (no reduction) is not implemented for sparse inputs"
+            )
+        if norm == (0,):
+            if isinstance(x, CSR):
+                v = _core.col_anys_from_parts(nrows, ncols, x.indptr, x.indices, x.data, False)
+            elif isinstance(x, CSC):
+                v = _core.col_anys_csc_from_parts(nrows, ncols, x.indptr, x.indices, x.data, False)
+            else:
+                v = _core.col_anys_coo_from_parts(nrows, ncols, x.row, x.col, x.data, False)
+            v = np.asarray(v, dtype=bool)
+            return v.reshape((1, ncols)) if keepdims else v
+        if norm == (1,):
+            if isinstance(x, CSR):
+                v = _core.row_anys_from_parts(nrows, ncols, x.indptr, x.indices, x.data, False)
+            elif isinstance(x, CSC):
+                v = _core.row_anys_csc_from_parts(nrows, ncols, x.indptr, x.indices, x.data, False)
+            else:
+                v = _core.row_anys_coo_from_parts(nrows, ncols, x.row, x.col, x.data, False)
+            v = np.asarray(v, dtype=bool)
+            return v.reshape((nrows, 1)) if keepdims else v
+        raise ValueError("invalid axis for 2D input")
+
+    if isinstance(x, COOND):
+        if axis is None:
+            v = _core.coond_any_from_parts(x.shape, x.indices, x.data, False)
+            if keepdims:
+                return np.array(bool(v)).reshape(tuple(1 for _ in range(x.ndim)))
+            return bool(v)
+        if axis == ():
+            raise NotImplementedError(
+                "any with axis=() (no reduction) is not implemented for COOND"
+            )
+        raise NotImplementedError("any with axis for COOND is not yet implemented")
+
+    xp = _numpy_xp()
+    return xp.any(x, axis=axis, keepdims=keepdims)
+
+
+def diff(x, *, n=1, axis=-1):
+    if isinstance(x, (CSR, CSC, COO)):
+        if _core is None:
+            raise RuntimeError("native core is not available")
+        # normalize single int axis for 2D
+        ax = int(axis)
+        if ax not in (-2, -1, 0, 1):
+            raise ValueError("axis must be in {-2,-1,0,1} for 2D inputs")
+        if ax < 0:
+            ax = 2 + ax
+        if isinstance(x, CSR):
+            oi, oj, ov, nr, nc = _core.diff_from_parts(
+                x.shape[0], x.shape[1], x.indptr, x.indices, x.data, int(n), int(ax), False
+            )
+            from ...sparse import CSR as _CSR
+
+            return _CSR(oi, oj, ov, shape=(nr, nc), check=False)
+        if isinstance(x, CSC):
+            oi, oj, ov, nr, nc = _core.diff_csc_from_parts(
+                x.shape[0], x.shape[1], x.indptr, x.indices, x.data, int(n), int(ax), False
+            )
+            from ...sparse import CSC as _CSC
+
+            return _CSC(oi, oj, ov, shape=(nr, nc), check=False)
+        oi, oj, ov, nr, nc = _core.diff_coo_from_parts(
+            x.shape[0], x.shape[1], x.row, x.col, x.data, int(n), int(ax), False
+        )
+        from ...sparse import COO as _COO
+
+        return _COO(oi, oj, ov, shape=(nr, nc), check=False)
+
+    if isinstance(x, COOND):
+        raise NotImplementedError("diff for COOND is not yet implemented")
+
+    xp = _numpy_xp()
+    return xp.diff(x, n=int(n), axis=axis)
+
+
+def cumsum(x, axis=None):
+    if isinstance(x, (CSR, CSC, COO)):
+        if _core is None:
+            raise RuntimeError("native core is not available")
+        norm = _normalize_axes_2d(axis)
+        if norm is None or norm == ():
+            raise NotImplementedError("cumsum requires axis in {0,1} for sparse inputs")
+        if norm == (0,):
+            if isinstance(x, CSR):
+                return _core.cumsum_from_parts_dense(
+                    x.shape[0], x.shape[1], x.indptr, x.indices, x.data, 0, False
+                )
+            if isinstance(x, CSC):
+                return _core.cumsum_csc_from_parts_dense(
+                    x.shape[0], x.shape[1], x.indptr, x.indices, x.data, 0, False
+                )
+            return _core.cumsum_coo_from_parts_dense(
+                x.shape[0], x.shape[1], x.row, x.col, x.data, 0, False
+            )
+        if norm == (1,):
+            if isinstance(x, CSR):
+                return _core.cumsum_from_parts_dense(
+                    x.shape[0], x.shape[1], x.indptr, x.indices, x.data, 1, False
+                )
+            if isinstance(x, CSC):
+                return _core.cumsum_csc_from_parts_dense(
+                    x.shape[0], x.shape[1], x.indptr, x.indices, x.data, 1, False
+                )
+            return _core.cumsum_coo_from_parts_dense(
+                x.shape[0], x.shape[1], x.row, x.col, x.data, 1, False
+            )
+        raise ValueError("invalid axis for 2D input")
+
+    if isinstance(x, COOND):
+        raise NotImplementedError("cumsum for COOND is not yet implemented")
+
+    xp = _numpy_xp()
+    return xp.cumsum(x, axis=axis)
+
+
+def cumprod(x, axis=None):
+    if isinstance(x, (CSR, CSC, COO)):
+        if _core is None:
+            raise RuntimeError("native core is not available")
+        norm = _normalize_axes_2d(axis)
+        if norm is None or norm == ():
+            raise NotImplementedError("cumprod requires axis in {0,1} for sparse inputs")
+        if norm == (0,):
+            if isinstance(x, CSR):
+                return _core.cumprod_from_parts_dense(
+                    x.shape[0], x.shape[1], x.indptr, x.indices, x.data, 0, False
+                )
+            if isinstance(x, CSC):
+                return _core.cumprod_csc_from_parts_dense(
+                    x.shape[0], x.shape[1], x.indptr, x.indices, x.data, 0, False
+                )
+            return _core.cumprod_coo_from_parts_dense(
+                x.shape[0], x.shape[1], x.row, x.col, x.data, 0, False
+            )
+        if norm == (1,):
+            if isinstance(x, CSR):
+                return _core.cumprod_from_parts_dense(
+                    x.shape[0], x.shape[1], x.indptr, x.indices, x.data, 1, False
+                )
+            if isinstance(x, CSC):
+                return _core.cumprod_csc_from_parts_dense(
+                    x.shape[0], x.shape[1], x.indptr, x.indices, x.data, 1, False
+                )
+            return _core.cumprod_coo_from_parts_dense(
+                x.shape[0], x.shape[1], x.row, x.col, x.data, 1, False
+            )
+        raise ValueError("invalid axis for 2D input")
+
+    if isinstance(x, COOND):
+        raise NotImplementedError("cumprod for COOND is not yet implemented")
+
+    xp = _numpy_xp()
+    return xp.cumprod(x, axis=axis)
+
+
 def min(x, axis=None, keepdims=False):
     if isinstance(x, (CSR, CSC, COO)):
         if _core is None:

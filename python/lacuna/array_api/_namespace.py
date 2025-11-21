@@ -31,6 +31,8 @@ def __array_namespace_info__() -> Dict[str, Any]:
                 "max",
                 "count_nonzero",
                 "prod",
+                "cumulative_sum",
+                "cumulative_prod",
                 "var",
                 "std",
             ],

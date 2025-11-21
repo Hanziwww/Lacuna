@@ -27,11 +27,11 @@ Notes: Sparse@sparse remains intentionally unimplemented for matmul.
 - [X] max(x, axis=None, keepdims=False)
 - [X] var(x, axis=None, correction=0, keepdims=False)
 - [X] std(x, axis=None, correction=0, keepdims=False)
-- [ ] cumsum(x, axis=None)
-- [ ] cumprod(x, axis=None)
-- [ ] all(x, axis=None, keepdims=False)
-- [ ] any(x, axis=None, keepdims=False)
-- [ ] diff(x, *, n=1, axis=-1)  (sparse-first variant)
+- [X] cumulative_prod(x, axis=None)
+- [X] cumulative_sum(x, axis=None)
+- [X] all(x, axis=None, keepdims=False)
+- [X] any(x, axis=None, keepdims=False)
+- [X] diff(x, *, n=1, axis=-1)  (sparse-first variant)
 
 Target first for CSR/CSC 2D; COOND support where feasible.
 

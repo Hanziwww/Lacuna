@@ -71,6 +71,12 @@ pub use statistical::prod::{
     prod_csc_f64, prod_f64, row_prods_coo_f64, row_prods_csc_f64, row_prods_f64,
 };
 
+// Cumulative (dense outputs)
+pub use statistical::cumulative::{
+    csr_cumprod_dense_axis0_f64, csr_cumprod_dense_axis1_f64, csr_cumsum_dense_axis0_f64,
+    csr_cumsum_dense_axis1_f64,
+};
+
 pub use statistical::varstd::{
     col_stds_coo_f64, col_stds_csc_f64, col_stds_f64, col_vars_coo_f64, col_vars_csc_f64,
     col_vars_f64, row_stds_coo_f64, row_stds_csc_f64, row_stds_f64, row_vars_coo_f64,
@@ -78,6 +84,10 @@ pub use statistical::varstd::{
     var_coond_f64, var_csc_f64, var_f64,
 };
 
+pub use manipulation::diff::{
+    diff_coo_axis0_f64_i64, diff_coo_axis1_f64_i64, diff_csc_axis0_f64_i64, diff_csc_axis1_f64_i64,
+    diff_csr_axis0_f64_i64, diff_csr_axis1_f64_i64,
+};
 pub use manipulation::permute_dims::permute_axes_coond_f64_i64;
 pub use manipulation::reshape::reshape_coond_f64_i64;
 
@@ -85,6 +95,13 @@ pub use data_type_functions::astype::{
     coo_to_csc_f64_i64, coo_to_csr_f64_i64, coond_axes_to_csc_f64_i64, coond_axes_to_csr_f64_i64,
     coond_mode_to_csc_f64_i64, coond_mode_to_csr_f64_i64, csc_to_coo_f64_i64, csc_to_csr_f64_i64,
     csr_to_coo_f64_i64, csr_to_csc_f64_i64,
+};
+
+// Logical reductions: all/any
+pub use statistical::logic::{
+    all_coo_f64, all_coond_f64, all_csc_f64, all_f64, any_coo_f64, any_coond_f64, any_csc_f64,
+    any_f64, col_alls_csc_f64, col_alls_f64, col_anys_csc_f64, col_anys_f64, row_alls_csc_f64,
+    row_alls_f64, row_anys_csc_f64, row_anys_f64,
 };
 
 pub use utility::eliminate_zeros::{

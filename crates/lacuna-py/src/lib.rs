@@ -213,6 +213,90 @@ fn _core(m: &Bound<PyModule>) -> PyResult<()> {
         m
     )?)?;
 
+    // Logical reductions: all / any (CSR)
+    m.add_function(wrap_pyfunction!(
+        crate::array_api::reduce::all_from_parts,
+        m
+    )?)?;
+    m.add_function(wrap_pyfunction!(
+        crate::array_api::reduce::any_from_parts,
+        m
+    )?)?;
+    m.add_function(wrap_pyfunction!(
+        crate::array_api::reduce::row_alls_from_parts,
+        m
+    )?)?;
+    m.add_function(wrap_pyfunction!(
+        crate::array_api::reduce::col_alls_from_parts,
+        m
+    )?)?;
+    m.add_function(wrap_pyfunction!(
+        crate::array_api::reduce::row_anys_from_parts,
+        m
+    )?)?;
+    m.add_function(wrap_pyfunction!(
+        crate::array_api::reduce::col_anys_from_parts,
+        m
+    )?)?;
+    // Logical reductions: all / any (CSC)
+    m.add_function(wrap_pyfunction!(
+        crate::array_api::reduce::all_csc_from_parts,
+        m
+    )?)?;
+    m.add_function(wrap_pyfunction!(
+        crate::array_api::reduce::any_csc_from_parts,
+        m
+    )?)?;
+    m.add_function(wrap_pyfunction!(
+        crate::array_api::reduce::row_alls_csc_from_parts,
+        m
+    )?)?;
+    m.add_function(wrap_pyfunction!(
+        crate::array_api::reduce::col_alls_csc_from_parts,
+        m
+    )?)?;
+    m.add_function(wrap_pyfunction!(
+        crate::array_api::reduce::row_anys_csc_from_parts,
+        m
+    )?)?;
+    m.add_function(wrap_pyfunction!(
+        crate::array_api::reduce::col_anys_csc_from_parts,
+        m
+    )?)?;
+    // Logical reductions: all / any (COO & COOND)
+    m.add_function(wrap_pyfunction!(
+        crate::array_api::reduce::all_coo_from_parts,
+        m
+    )?)?;
+    m.add_function(wrap_pyfunction!(
+        crate::array_api::reduce::any_coo_from_parts,
+        m
+    )?)?;
+    m.add_function(wrap_pyfunction!(
+        crate::array_api::reduce::row_alls_coo_from_parts,
+        m
+    )?)?;
+    m.add_function(wrap_pyfunction!(
+        crate::array_api::reduce::col_alls_coo_from_parts,
+        m
+    )?)?;
+    m.add_function(wrap_pyfunction!(
+        crate::array_api::reduce::row_anys_coo_from_parts,
+        m
+    )?)?;
+    m.add_function(wrap_pyfunction!(
+        crate::array_api::reduce::col_anys_coo_from_parts,
+        m
+    )?)?;
+    m.add_function(wrap_pyfunction!(
+        crate::array_api::reduce::coond_all_from_parts,
+        m
+    )?)?;
+    m.add_function(wrap_pyfunction!(
+        crate::array_api::reduce::coond_any_from_parts,
+        m
+    )?)?;
+
     // Product (CSR/CSC/COO/COOND)
     m.add_function(wrap_pyfunction!(
         crate::array_api::reduce::prod_from_parts,
@@ -252,6 +336,32 @@ fn _core(m: &Bound<PyModule>) -> PyResult<()> {
     )?)?;
     m.add_function(wrap_pyfunction!(
         crate::array_api::reduce::coond_prod_from_parts,
+        m
+    )?)?;
+
+    // Cumulative (dense ndarray output)
+    m.add_function(wrap_pyfunction!(
+        crate::array_api::reduce::cumsum_from_parts_dense,
+        m
+    )?)?;
+    m.add_function(wrap_pyfunction!(
+        crate::array_api::reduce::cumsum_csc_from_parts_dense,
+        m
+    )?)?;
+    m.add_function(wrap_pyfunction!(
+        crate::array_api::reduce::cumsum_coo_from_parts_dense,
+        m
+    )?)?;
+    m.add_function(wrap_pyfunction!(
+        crate::array_api::reduce::cumprod_from_parts_dense,
+        m
+    )?)?;
+    m.add_function(wrap_pyfunction!(
+        crate::array_api::reduce::cumprod_csc_from_parts_dense,
+        m
+    )?)?;
+    m.add_function(wrap_pyfunction!(
+        crate::array_api::reduce::cumprod_coo_from_parts_dense,
         m
     )?)?;
 
@@ -366,6 +476,19 @@ fn _core(m: &Bound<PyModule>) -> PyResult<()> {
     )?)?;
     m.add_function(wrap_pyfunction!(
         crate::array_api::manipulation::coond_reshape_from_parts,
+        m
+    )?)?;
+    // diff (CSR/CSC/COO)
+    m.add_function(wrap_pyfunction!(
+        crate::array_api::manipulation::diff_from_parts,
+        m
+    )?)?;
+    m.add_function(wrap_pyfunction!(
+        crate::array_api::manipulation::diff_csc_from_parts,
+        m
+    )?)?;
+    m.add_function(wrap_pyfunction!(
+        crate::array_api::manipulation::diff_coo_from_parts,
         m
     )?)?;
 

@@ -31,20 +31,20 @@ def std(x, axis=None, correction=0.0, keepdims=False):
 
 
 def cumulative_sum(x, axis=None):
-    return getattr(_ns, "cumulative_sum")(x, axis=axis)
+    return _dp.cumsum(x, axis=axis)
 
 
 def cumulative_prod(x, axis=None):
-    return getattr(_ns, "cumulative_prod")(x, axis=axis)
+    return _dp.cumprod(x, axis=axis)
 
 
 def all(x, axis=None, keepdims=False):
-    return getattr(_ns, "all")(x, axis=axis, keepdims=keepdims)
+    return _dp.all(x, axis=axis, keepdims=keepdims)
 
 
 def any(x, axis=None, keepdims=False):
-    return getattr(_ns, "any")(x, axis=axis, keepdims=keepdims)
+    return _dp.any(x, axis=axis, keepdims=keepdims)
 
 
 def diff(x, *, n=1, axis=-1):
-    return getattr(_ns, "diff")(x, n=n, axis=axis)
+    return _dp.diff(x, n=n, axis=axis)

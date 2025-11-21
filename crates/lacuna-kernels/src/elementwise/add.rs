@@ -1,9 +1,11 @@
-//! Elementwise addition for all sparse formats (Array API: `add`)
+//! Elementwise addition for all sparse formats (Array API: `add`).
 //!
 //! Implements sparse + sparse addition for:
-//! - CSR (Compressed Sparse Row)
-//! - CSC (Compressed Sparse Column)  
-//! - COOND (N-dimensional COO)
+//! - CSR (Compressed Sparse Row): merges rows element-wise
+//! - CSC (Compressed Sparse Column): merges columns element-wise
+//! - CooND (N-dimensional COO): merges via linearized coordinate keys
+//!
+//! All operations coalesce duplicate coordinates and filter out exact zeros.
 
 #![allow(
     clippy::similar_names,
@@ -18,6 +20,7 @@ use crate::utility::util::UsizeF64Map;
 use lacuna_core::{CooNd, Csc, Csr};
 use rayon::prelude::*;
 
+/// Converts i64 to usize with debug assertions for non-negative values.
 #[inline]
 fn i64_to_usize(x: i64) -> usize {
     debug_assert!(x >= 0);
@@ -27,6 +30,7 @@ fn i64_to_usize(x: i64) -> usize {
     }
 }
 
+/// Converts usize to i64 with debug assertions for range validity.
 #[inline]
 fn usize_to_i64(x: usize) -> i64 {
     debug_assert!(i64::try_from(x).is_ok());
@@ -36,7 +40,27 @@ fn usize_to_i64(x: usize) -> i64 {
     }
 }
 
-/// Helper: count non-zero entries in sorted merge of two sparse rows
+/// Counts nonzero entries resulting from merging two sorted sparse rows.
+///
+/// Performs a two-pointer merge of column indices from rows of matrices A and B,
+/// accumulating values at matching column positions and filtering exact zeros.
+/// Both input rows are assumed to have strictly increasing column indices with no duplicates.
+///
+/// # Arguments
+/// * `ai` - Pointer to column indices of matrix A's row segment
+/// * `av` - Pointer to values of matrix A's row segment
+/// * `alen` - Length of A's row segment
+/// * `bi` - Pointer to column indices of matrix B's row segment
+/// * `bv` - Pointer to values of matrix B's row segment
+/// * `blen` - Length of B's row segment
+///
+/// # Returns
+/// Count of nonzero entries in the merged result (zeros are filtered out)
+///
+/// # Safety
+/// Caller must ensure:
+/// - All pointers are valid for their respective lengths
+/// - Column indices are strictly increasing within each row segment
 #[inline]
 unsafe fn add_row_count(
     ai: *const i64,
@@ -77,7 +101,26 @@ unsafe fn add_row_count(
     cnt
 }
 
-/// Helper: merge two sorted sparse rows into output, filtering zeros
+/// Merges two sorted sparse rows and writes output, filtering zeros.
+///
+/// Performs the same merge operation as `add_row_count` but also writes the
+/// resulting column indices and accumulated values to output arrays.
+/// Both input rows are assumed to have strictly increasing column indices with no duplicates.
+///
+/// # Arguments
+/// * `ai`, `av`, `alen` - Column indices and values of matrix A's row segment
+/// * `bi`, `bv`, `blen` - Column indices and values of matrix B's row segment
+/// * `out_i` - Output buffer for merged column indices
+/// * `out_v` - Output buffer for merged values
+///
+/// # Returns
+/// Number of elements written to output (zeros filtered out)
+///
+/// # Safety
+/// Caller must ensure:
+/// - All input pointers are valid for their respective lengths
+/// - Output pointers are valid for at least alen+blen elements
+/// - Column indices are strictly increasing within each input row
 #[inline]
 #[allow(clippy::too_many_arguments)]
 unsafe fn add_row_fill(
@@ -125,9 +168,28 @@ unsafe fn add_row_fill(
     dst
 }
 
-/// Add two CSR matrices: A + B
+/// Adds two CSR matrices: A + B → Result (in CSR format).
 ///
-/// Coalesces duplicates within each row. Result shape matches inputs.
+/// Performs element-wise addition by merging rows in parallel. Duplicate
+/// coordinates (same row and column) are coalesced by summing their values.
+/// Exact zeros in the result are automatically filtered out.
+///
+/// # Algorithm
+/// **Pass 1: Count Phase** (parallel over rows)
+/// - For each row i, count nonzeros in the merged result of A[i] and B[i]
+/// - Use two-pointer merge algorithm on sorted column indices
+///
+/// **Pass 2: Fill Phase** (parallel over rows)
+/// - Compute row pointers (indptr) via prefix sum of counts
+/// - Allocate output indices and data arrays
+/// - For each row, merge and write results to output
+///
+/// # Complexity
+/// - Time: O((nnz_A + nnz_B) + nrows * log(nrows)) in practice
+/// - Space: O(nnz_output)
+///
+/// # Panics
+/// - If input matrices have different shapes
 #[must_use]
 pub fn add_csr_f64_i64(a: &Csr<f64, i64>, b: &Csr<f64, i64>) -> Csr<f64, i64> {
     assert_eq!(a.nrows, b.nrows);
@@ -198,9 +260,28 @@ pub fn add_csr_f64_i64(a: &Csr<f64, i64>, b: &Csr<f64, i64>) -> Csr<f64, i64> {
     Csr::from_parts_unchecked(nrows, a.ncols, indptr, indices, data)
 }
 
-/// Add two CSC matrices: A + B
+/// Adds two CSC matrices: A + B → Result (in CSC format).
 ///
-/// Coalesces duplicates within each column. Result shape matches inputs.
+/// Performs element-wise addition by merging columns in parallel. Duplicate
+/// coordinates (same row and column) are coalesced by summing their values.
+/// Exact zeros in the result are automatically filtered out.
+///
+/// # Algorithm
+/// **Pass 1: Count Phase** (parallel over columns)
+/// - For each column j, count nonzeros in the merged result of A[j] and B[j]
+/// - Use two-pointer merge algorithm on sorted row indices
+///
+/// **Pass 2: Fill Phase** (parallel over columns)
+/// - Compute column pointers (indptr) via prefix sum of counts
+/// - Allocate output indices and data arrays
+/// - For each column, merge and write results to output
+///
+/// # Complexity
+/// - Time: O((nnz_A + nnz_B) + ncols * log(ncols)) in practice
+/// - Space: O(nnz_output)
+///
+/// # Panics
+/// - If input matrices have different shapes
 #[must_use]
 pub fn add_csc_f64_i64(a: &Csc<f64, i64>, b: &Csc<f64, i64>) -> Csc<f64, i64> {
     assert_eq!(a.nrows, b.nrows);
@@ -269,9 +350,28 @@ pub fn add_csc_f64_i64(a: &Csc<f64, i64>, b: &Csc<f64, i64>) -> Csc<f64, i64> {
     Csc::from_parts_unchecked(a.nrows, ncols, indptr, indices, data)
 }
 
-/// Add two N-dimensional COO arrays: A + B
+/// Adds two N-dimensional COO arrays: A + B → Result (in COO format).
 ///
-/// Coalesces duplicates and filters zeros. Shapes must match.
+/// Performs element-wise addition on N-D sparse arrays. Duplicate coordinates
+/// are coalesced by summing their values. Exact zeros are filtered out.
+///
+/// # Algorithm
+/// 1. **Linearization**: Compute row-major strides from shape
+/// 2. **Accumulation**: Convert all coordinates to linearized indices (keys)
+///    - Insert A's entries into hash map with accumulation
+///    - Insert B's entries into hash map with accumulation
+/// 3. **Filtering & Sorting**: Filter out exact zeros, sort by linearized key
+/// 4. **Reconstruction**: Convert linearized indices back to N-D coordinates
+///    - For each (linearized_key, value) pair, reconstruct N-D coordinates
+///    - Build output indices array and data array
+///
+/// # Complexity
+/// - Time: O((nnz_A + nnz_B) * ndim) for linearization/reconstruction
+/// - Space: O(nnz_output + ndim)
+///
+/// # Panics
+/// - If input arrays have different shapes or ndim
+/// - If shape product or linear index computation overflows
 #[must_use]
 pub fn add_coond_f64_i64(a: &CooNd<f64, i64>, b: &CooNd<f64, i64>) -> CooNd<f64, i64> {
     assert_eq!(a.shape.len(), b.shape.len());

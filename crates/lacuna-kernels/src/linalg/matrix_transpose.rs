@@ -1,9 +1,21 @@
-//! Matrix transpose for CSR/CSC/COO
+//! Matrix transpose kernels for CSR, CSC, and COO formats.
+//!
+//! Implements:
+//! - **CSR transpose** (CSR → CSR): Uses adaptive strategy (per-thread histograms or atomic fallback)
+//! - **CSC transpose** (CSC → CSC): Uses adaptive strategy (per-thread histograms or atomic fallback)
+//! - **COO transpose** (COO → COO): Simple coordinate swap
+//!
+//! Adaptive strategy:
+//! - **Strategy A**: Per-thread histograms when memory budget permits (~512MB)
+//! - **Strategy B**: Atomic next pointers with per-row/column sorting fallback
+//!
+//! Both strategies use 4-way loop unrolling for throughput.
 
 use lacuna_core::{Coo, Csc, Csr};
 use rayon::prelude::*;
 use std::sync::atomic::{AtomicI64, Ordering};
 
+/// Converts i64 to usize with debug assertions for non-negative values.
 #[inline]
 fn i64_to_usize(x: i64) -> usize {
     debug_assert!(x >= 0, "value must be non-negative");
@@ -13,6 +25,7 @@ fn i64_to_usize(x: i64) -> usize {
     }
 }
 
+/// Converts usize to i64 with debug assertions for range validity.
 #[inline]
 fn usize_to_i64(x: usize) -> i64 {
     debug_assert!(i64::try_from(x).is_ok(), "value must fit in i64");
@@ -22,7 +35,32 @@ fn usize_to_i64(x: usize) -> i64 {
     }
 }
 
-/// Transpose CSC -> CSC (parallel histogram-based)
+/// Transposes a CSC matrix: A (nrows × ncols) → A^T (ncols × nrows) in CSC format.
+///
+/// Uses adaptive strategy based on memory availability:
+/// - **Strategy A (per-thread histograms)** when memory cost ≤ ~512MB:
+///   * Partition columns into ranges (one per thread)
+///   * Each thread computes histogram of row indices for its columns
+///   * Global indptr computed via reduction of histograms
+///   * Per-thread offsets allow lock-free fill phase
+///   * Result naturally sorted within each column (no post-sort needed)
+///
+/// - **Strategy B (atomic fallback)** otherwise:
+///   * Count row indices globally (sequential)
+///   * Build indptr
+///   * Parallel fill using atomic next pointers to assign destinations
+///   * Per-column sorting to restore strictly increasing row indices
+///
+/// # Optimization
+/// - 4-way loop unrolling in both strategies
+/// - Bounds-checking elimination via unsafe
+/// - Lock-free writes with per-thread histograms (Strategy A)
+///
+/// # Arguments
+/// * `a` - Input CSC matrix (nrows × ncols)
+///
+/// # Returns
+/// Transposed CSC matrix (ncols × nrows) with column-major storage preserved
 #[allow(
     clippy::similar_names,
     reason = "Pointer aliases (pi/pv/pir/pvr etc.) are intentionally similar in low-level kernels"
@@ -274,7 +312,19 @@ pub fn transpose_csc_f64_i64(a: &Csc<f64, i64>) -> Csc<f64, i64> {
     Csc::from_parts_unchecked(nrows_t, ncols_t, indptr, indices, data)
 }
 
-/// Transpose COO -> COO (swap row/col)
+/// Transposes a COO matrix: A (nrows × ncols) → A^T (ncols × nrows) in COO format.
+///
+/// Simple coordinate-wise transposition by swapping row and column indices.
+/// Data values are unchanged. Shape is swapped.
+///
+/// # Time Complexity
+/// O(nnz) for cloning row, col, and data arrays.
+///
+/// # Arguments
+/// * `a` - Input COO matrix (nrows × ncols)
+///
+/// # Returns
+/// Transposed COO matrix (ncols × nrows)
 #[must_use]
 pub fn transpose_coo_f64_i64(a: &Coo<f64, i64>) -> Coo<f64, i64> {
     // Simple swap: row' = col, col' = row; data cloned; shape swapped
@@ -284,7 +334,32 @@ pub fn transpose_coo_f64_i64(a: &Coo<f64, i64>) -> Coo<f64, i64> {
     Coo::from_parts_unchecked(a.ncols, a.nrows, row, col, data)
 }
 
-/// Transpose CSR -> CSR (simple histogram-based)
+/// Transposes a CSR matrix: A (nrows × ncols) → A^T (ncols × nrows) in CSR format.
+///
+/// Uses adaptive strategy based on memory availability:
+/// - **Strategy A (per-thread histograms)** when memory cost ≤ ~512MB:
+///   * Partition rows into ranges (one per thread)
+///   * Each thread computes histogram of column indices for its rows
+///   * Global indptr computed via reduction of histograms
+///   * Per-thread offsets allow lock-free fill phase
+///   * Result naturally sorted within each row (no post-sort needed)
+///
+/// - **Strategy B (atomic fallback)** otherwise:
+///   * Count column indices globally (sequential)
+///   * Build indptr
+///   * Parallel fill using atomic next pointers to assign destinations
+///   * Per-row sorting to restore strictly increasing column indices
+///
+/// # Optimization
+/// - 4-way loop unrolling in both strategies
+/// - Bounds-checking elimination via unsafe
+/// - Lock-free writes with per-thread histograms (Strategy A)
+///
+/// # Arguments
+/// * `a` - Input CSR matrix (nrows × ncols)
+///
+/// # Returns
+/// Transposed CSR matrix (ncols × nrows) with row-major storage preserved
 #[allow(
     clippy::similar_names,
     reason = "Pointer aliases (pi/pv/pir/pvr etc.) are intentionally similar in low-level kernels"

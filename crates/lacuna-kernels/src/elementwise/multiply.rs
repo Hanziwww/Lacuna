@@ -1,4 +1,11 @@
-//! Elementwise multiplication (Hadamard product) and scalar multiplication
+//! Elementwise multiplication (Hadamard product) and scalar multiplication.
+//!
+//! Implements:
+//! - Hadamard product (element-wise multiplication) for CSR, CSC, and N-dimensional COO
+//! - Broadcasting support for N-dimensional arrays
+//! - Scalar multiplication for all formats with SIMD optimization
+//!
+//! All Hadamard operations filter out exact zeros from the result.
 
 #![allow(
     clippy::similar_names,
@@ -27,6 +34,7 @@ use wide::f64x4;
 
 const SMALL_NNZ_SIMD: usize = 16 * 1024;
 
+/// Converts i64 to usize with debug assertions for non-negative values.
 #[inline]
 fn i64_to_usize(x: i64) -> usize {
     debug_assert!(x >= 0);
@@ -36,6 +44,7 @@ fn i64_to_usize(x: i64) -> usize {
     }
 }
 
+/// Converts usize to i64 with debug assertions for range validity.
 #[inline]
 fn usize_to_i64(x: usize) -> i64 {
     debug_assert!(i64::try_from(x).is_ok());
@@ -45,6 +54,9 @@ fn usize_to_i64(x: usize) -> i64 {
     }
 }
 
+/// Builds strides for row-major (C-style) ordering.
+/// For shape [d0, d1, ..., dn], computes strides where stride[i] = d[i+1] * d[i+2] * ...
+/// This allows converting multi-dimensional indices to linear indices.
 #[inline]
 fn build_strides_row_major(dims: &[usize]) -> Vec<usize> {
     if dims.is_empty() {
@@ -61,6 +73,28 @@ fn build_strides_row_major(dims: &[usize]) -> Vec<usize> {
     strides
 }
 
+/// Hadamard product (element-wise multiplication) with broadcasting for N-dimensional COO arrays.
+///
+/// Multiplies two N-dimensional sparse arrays with broadcasting support:
+/// - Shapes are broadcast to a common ndim (left-padded with 1s)
+/// - Dimensions with size 1 are broadcast to match the other operand
+/// - Result shape is the maximum of broadcast shapes
+///
+/// # Algorithm
+/// 1. Normalize shapes to common ndim with left-padding
+/// 2. Validate broadcasting constraints
+/// 3. Build masks to identify intersection, free-a, and free-b dimensions
+/// 4. Normalize index arrays to common ndim
+/// 5. Group both arrays by intersection key (only dims where both >1)
+/// 6. For matching intersection keys, compute all pairwise products
+/// 7. Accumulate products in per-chunk maps, then merge
+/// 8. Reconstruct N-D indices from linearized keys
+///
+/// # Parallelization
+/// Chunks of matching keys are processed in parallel to accumulate products.
+///
+/// # Panics
+/// - If dimensions cannot be broadcast together
 #[must_use]
 #[allow(clippy::too_many_lines)]
 pub fn hadamard_broadcast_coond_f64_i64(
@@ -273,6 +307,25 @@ pub fn hadamard_broadcast_coond_f64_i64(
     CooNd::from_parts_unchecked(out_shape, out_indices, out_data)
 }
 
+/// Hadamard product (element-wise multiplication) for same-shape N-dimensional COO arrays.
+///
+/// Multiplies two N-dimensional sparse arrays element-wise. Both arrays must have
+/// identical shapes. Only entries with nonzero product are included in the result.
+///
+/// # Algorithm
+/// 1. Linearize all coordinates using row-major strides
+/// 2. Accumulate entries from A and B separately (combining duplicates)
+/// 3. Sort both accumulated lists by linearized key
+/// 4. Merge sorted lists, multiplying values at matching keys
+/// 5. Filter out exact zeros
+/// 6. Reconstruct N-D coordinates from linearized keys
+///
+/// # Complexity
+/// - Time: O((nnz_A + nnz_B) * ndim + nnz_output * ndim)
+/// - Space: O(nnz_A + nnz_B + nnz_output)
+///
+/// # Panics
+/// - If input arrays have different shapes or ndim
 #[must_use]
 pub fn hadamard_coond_f64_i64(a: &CooNd<f64, i64>, b: &CooNd<f64, i64>) -> CooNd<f64, i64> {
     assert_eq!(a.shape.len(), b.shape.len());
@@ -350,6 +403,21 @@ pub fn hadamard_coond_f64_i64(a: &CooNd<f64, i64>, b: &CooNd<f64, i64>) -> CooNd
     CooNd::from_parts_unchecked(a.shape.clone(), out_indices, out_data)
 }
 
+/// Counts nonzero entries in the Hadamard product of two sorted sparse rows.
+///
+/// Uses a two-pointer merge algorithm to find matching column indices in rows A and B,
+/// then counts products that are nonzero. Handles duplicate column indices by accumulating
+/// values before multiplication.
+///
+/// # Arguments
+/// * `ai`, `av`, `alen` - Column indices and values of matrix A's row segment
+/// * `bi`, `bv`, `blen` - Column indices and values of matrix B's row segment
+///
+/// # Returns
+/// Count of nonzero entries in the Hadamard product result
+///
+/// # Safety
+/// Caller must ensure all pointers are valid for their lengths and columns are strictly increasing.
 #[inline]
 unsafe fn hadamard_row_count(
     ai: *const i64,
@@ -400,6 +468,23 @@ unsafe fn hadamard_row_count(
     cnt
 }
 
+/// Merges two sorted sparse rows via Hadamard product and writes output.
+///
+/// Performs the same merge and multiplication as `hadamard_row_count` but also
+/// writes the resulting column indices and product values to output arrays.
+/// Handles duplicate indices by accumulating values before multiplication and filters zeros.
+///
+/// # Arguments
+/// * `ai`, `av`, `alen` - Column indices and values of matrix A's row segment
+/// * `bi`, `bv`, `blen` - Column indices and values of matrix B's row segment
+/// * `out_i` - Output buffer for product column indices
+/// * `out_v` - Output buffer for product values
+///
+/// # Returns
+/// Number of elements written to output (exact zeros are filtered)
+///
+/// # Safety
+/// Caller must ensure all input pointers are valid and output buffers have sufficient capacity.
 #[inline]
 #[allow(clippy::too_many_arguments)]
 unsafe fn hadamard_row_fill(
@@ -457,6 +542,22 @@ unsafe fn hadamard_row_fill(
     dst
 }
 
+/// Hadamard product (element-wise multiplication) for CSC matrices: A ⊙ B → Result.
+///
+/// Computes element-wise multiplication by processing columns in parallel.
+/// Only positions where both operands have nonzero entries are included in the result.
+/// Duplicate column indices are handled via value accumulation before multiplication.
+///
+/// # Algorithm
+/// **Pass 1: Count Phase** (parallel over columns)
+/// - For each column j, count nonzeros in A[j] ⊙ B[j] using two-pointer merge
+///
+/// **Pass 2: Fill Phase** (parallel over columns)
+/// - Compute column pointers (indptr) via prefix sum
+/// - For each column, merge rows and write Hadamard products
+///
+/// # Panics
+/// - If input matrices have different shapes
 #[must_use]
 pub fn hadamard_csc_f64_i64(a: &Csc<f64, i64>, b: &Csc<f64, i64>) -> Csc<f64, i64> {
     assert_eq!(a.nrows, b.nrows);
@@ -521,6 +622,22 @@ pub fn hadamard_csc_f64_i64(a: &Csc<f64, i64>, b: &Csc<f64, i64>) -> Csc<f64, i6
     Csc::from_parts_unchecked(a.nrows, ncols, indptr, indices, data)
 }
 
+/// Hadamard product (element-wise multiplication) for CSR matrices: A ⊙ B → Result.
+///
+/// Computes element-wise multiplication by processing rows in parallel.
+/// Only positions where both operands have nonzero entries are included in the result.
+/// Duplicate row indices are handled via value accumulation before multiplication.
+///
+/// # Algorithm
+/// **Pass 1: Count Phase** (parallel over rows)
+/// - For each row i, count nonzeros in A[i] ⊙ B[i] using two-pointer merge
+///
+/// **Pass 2: Fill Phase** (parallel over rows)
+/// - Compute row pointers (indptr) via prefix sum
+/// - For each row, merge columns and write Hadamard products
+///
+/// # Panics
+/// - If input matrices have different shapes
 #[must_use]
 pub fn hadamard_csr_f64_i64(a: &Csr<f64, i64>, b: &Csr<f64, i64>) -> Csr<f64, i64> {
     assert_eq!(a.nrows, b.nrows);
@@ -585,6 +702,19 @@ pub fn hadamard_csr_f64_i64(a: &Csr<f64, i64>, b: &Csr<f64, i64>) -> Csr<f64, i6
     Csr::from_parts_unchecked(nrows, a.ncols, indptr, indices, data)
 }
 
+/// Scalar multiplication for N-dimensional COO arrays: alpha * A.
+///
+/// Multiplies all nonzero values by a scalar using SIMD optimization for speed.
+/// Fast paths for alpha=1 (identity) and alpha=0 (zero array).
+///
+/// # Algorithm
+/// - For small nnz: serial SIMD processing (4 elements at a time)
+/// - For large nnz: parallel SIMD processing in 4KB chunks
+/// - Remaining elements processed serially (non-SIMD)
+///
+/// # Optimization
+/// Uses f64x4 wide vectors to process 4 f64 values simultaneously,
+/// with threshold SMALL_NNZ_SIMD to avoid parallelization overhead.
 #[must_use]
 #[allow(clippy::float_cmp)]
 pub fn mul_scalar_coond_f64(a: &CooNd<f64, i64>, alpha: f64) -> CooNd<f64, i64> {
@@ -638,6 +768,19 @@ pub fn mul_scalar_coond_f64(a: &CooNd<f64, i64>, alpha: f64) -> CooNd<f64, i64> 
     CooNd::from_parts_unchecked(a.shape.clone(), a.indices.clone(), data)
 }
 
+/// Scalar multiplication for CSC matrices: alpha * A.
+///
+/// Multiplies all nonzero values by a scalar using SIMD optimization for speed.
+/// Fast paths for alpha=1 (identity) and alpha=0 (zero matrix).
+///
+/// # Algorithm
+/// - For small nnz: serial SIMD processing (4 elements at a time)
+/// - For large nnz: parallel SIMD processing in 4KB chunks
+/// - Remaining elements processed serially (non-SIMD)
+///
+/// # Optimization
+/// Uses f64x4 wide vectors to process 4 f64 values simultaneously,
+/// with threshold SMALL_NNZ_SIMD to avoid parallelization overhead.
 #[must_use]
 #[allow(clippy::float_cmp)]
 pub fn mul_scalar_csc_f64(a: &Csc<f64, i64>, alpha: f64) -> Csc<f64, i64> {
@@ -694,6 +837,19 @@ pub fn mul_scalar_csc_f64(a: &Csc<f64, i64>, alpha: f64) -> Csc<f64, i64> {
     Csc::from_parts_unchecked(nrows, ncols, a.indptr.clone(), a.indices.clone(), data)
 }
 
+/// Scalar multiplication for COO matrices: alpha * A.
+///
+/// Multiplies all nonzero values by a scalar using SIMD optimization for speed.
+/// Fast paths for alpha=1 (identity) and alpha=0 (zero matrix).
+///
+/// # Algorithm
+/// - For small nnz: serial SIMD processing (4 elements at a time)
+/// - For large nnz: parallel SIMD processing in 4KB chunks
+/// - Remaining elements processed serially (non-SIMD)
+///
+/// # Optimization
+/// Uses f64x4 wide vectors to process 4 f64 values simultaneously,
+/// with threshold SMALL_NNZ_SIMD to avoid parallelization overhead.
 #[must_use]
 #[allow(clippy::float_cmp)]
 pub fn mul_scalar_coo_f64(a: &Coo<f64, i64>, alpha: f64) -> Coo<f64, i64> {
@@ -749,6 +905,19 @@ pub fn mul_scalar_coo_f64(a: &Coo<f64, i64>, alpha: f64) -> Coo<f64, i64> {
     Coo::from_parts_unchecked(nrows, ncols, a.row.clone(), a.col.clone(), data)
 }
 
+/// Scalar multiplication for CSR matrices: alpha * A.
+///
+/// Multiplies all nonzero values by a scalar using SIMD optimization for speed.
+/// Fast paths for alpha=1 (identity) and alpha=0 (zero matrix).
+///
+/// # Algorithm
+/// - For small nnz: serial SIMD processing (4 elements at a time)
+/// - For large nnz: parallel SIMD processing in 4KB chunks
+/// - Remaining elements processed serially (non-SIMD)
+///
+/// # Optimization
+/// Uses f64x4 wide vectors to process 4 f64 values simultaneously,
+/// with threshold SMALL_NNZ_SIMD to avoid parallelization overhead.
 #[must_use]
 #[allow(clippy::float_cmp)]
 pub fn mul_scalar_f64(a: &Csr<f64, i64>, alpha: f64) -> Csr<f64, i64> {

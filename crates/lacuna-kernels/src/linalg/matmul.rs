@@ -1,9 +1,15 @@
-//! Matrix multiplication: spmv and spmm for all formats
-
-#![allow(
-    clippy::many_single_char_names,
-    reason = "Math kernels conventionally use i/j/k/p to denote indices and pointers"
-)]
+//! Matrix multiplication kernels: SpMV and SpMM for all sparse formats.
+//!
+//! This module provides:
+//! - **SpMV (Sparse Matrix-Vector product)**: y = A @ x for CSR, CSC, COO, and N-D arrays
+//! - **SpMM (Sparse Matrix-Matrix product)**: Y = A @ B for CSR, CSC, COO, and N-D arrays
+//!
+//! Implementations use:
+//! - Adaptive accumulator strategies (sparse hash map vs. dense arrays with striping)
+//! - SIMD vectorization with f64x4 for dense operations
+//! - Aggressive loop unrolling and prefetching in SpMV row computation
+//! - Thread-local accumulators to minimize synchronization
+//! - Heuristic format selection for SpMM (CSR vs. CSC based on k and sparsity)
 
 use crate::data_type_functions::astype::csr_to_csc_f64_i64;
 use crate::utility::util::{
@@ -16,6 +22,7 @@ use std::cell::RefCell;
 use thread_local::ThreadLocal;
 use wide::f64x4;
 
+/// Converts usize to i64 with debug assertions for range validity.
 #[inline]
 fn usize_to_i64(x: usize) -> i64 {
     debug_assert!(i64::try_from(x).is_ok());
@@ -27,7 +34,28 @@ fn usize_to_i64(x: usize) -> i64 {
 
 // ---------------- SpMV ----------------
 
-/// y = A @ x for CSC
+/// Sparse Matrix-Vector product for CSC format: y = A @ x.
+///
+/// Computes a column-oriented SpMV by iterating columns and accumulating contributions
+/// to output rows. Uses adaptive accumulation strategies:
+/// - **Sparse accumulation**: Hash map for problems with low output density
+/// - **Dense small**: Dense array when output is small (<= 2*STRIPE_ROWS)
+/// - **Striped dense**: Striped dense arrays for large outputs (reduces memory bandwidth)
+///
+/// # Algorithm
+/// 1. Partition columns into ranges (~128KB nnz per range)
+/// 2. For each range in parallel:
+///    - Use thread-local accumulator (sparse, dense, or striped)
+///    - Iterate columns and accumulate A[i,j]*x[j] contributions
+/// 3. Merge thread-local results into output
+///
+/// # Optimization
+/// - Avoids parallelization overhead for small problems
+/// - Column-based partitioning for cache locality
+/// - Striped dense accumulation reduces NUMA effects on large outputs
+///
+/// # Panics
+/// - If x.len() != ncols
 #[allow(clippy::too_many_lines)]
 #[must_use]
 pub fn spmv_csc_f64_i64(a: &Csc<f64, i64>, x: &[f64]) -> Vec<f64> {
@@ -178,7 +206,24 @@ pub fn spmv_csc_f64_i64(a: &Csc<f64, i64>, x: &[f64]) -> Vec<f64> {
     y
 }
 
-/// ND SpMV along a specific axis: out = tensordot(a, x, axes=[axis])
+/// N-dimensional SpMV (tensor contraction along one axis): out = tensordot(A, x, axes=[axis]).
+///
+/// Multiplies an N-dimensional sparse array A by a vector x along a specified axis,
+/// reducing dimensionality by 1. Sparse coordinates are linearized and accumulated.
+///
+/// # Algorithm
+/// 1. Identify output axes (all except the contracted axis)
+/// 2. Compute output shape and row-major strides
+/// 3. For each nonzero in A:
+///    - Extract coordinate along contracted axis (to index into x)
+///    - Linearize remaining coordinates
+///    - Accumulate A[...] * x[axis_idx] by linearized key
+/// 4. Sort and reconstruct N-D indices
+///
+/// # Panics
+/// - If axis >= ndim
+/// - If x.len() != shape[axis]
+/// - If contracting over all axes (use sum instead)
 #[allow(clippy::doc_markdown)]
 #[must_use]
 pub fn spmv_coond_f64_i64(a: &CooNd<f64, i64>, axis: usize, x: &[f64]) -> CooNd<f64, i64> {
@@ -243,7 +288,23 @@ pub fn spmv_coond_f64_i64(a: &CooNd<f64, i64>, axis: usize, x: &[f64]) -> CooNd<
     CooNd::from_parts_unchecked(out_shape, out_indices, out_data)
 }
 
-/// y = A @ x for COO
+/// Sparse Matrix-Vector product for COO format: y = A @ x.
+///
+/// Computes SpMV for COO format by partitioning nonzero elements into chunks
+/// and using adaptive accumulation strategies:
+/// - **Sparse accumulation**: Hash map for low output density
+/// - **Dense small**: Dense array for small outputs (<= 2*STRIPE_ROWS)
+/// - **Striped dense**: Striped dense arrays for large outputs
+///
+/// # Algorithm
+/// 1. Partition nnz into chunks (~nnz / (8*nthreads) elements per chunk)
+/// 2. For each chunk in parallel:
+///    - Use thread-local accumulator
+///    - Process COO entries and accumulate y[i] += A[i,j] * x[j]
+/// 3. Merge thread-local results into output
+///
+/// # Panics
+/// - If x.len() != ncols
 #[allow(clippy::too_many_lines)]
 #[must_use]
 pub fn spmv_coo_f64_i64(a: &Coo<f64, i64>, x: &[f64]) -> Vec<f64> {
@@ -368,6 +429,23 @@ pub fn spmv_coo_f64_i64(a: &Coo<f64, i64>, x: &[f64]) -> Vec<f64> {
     }
 }
 
+/// Computes a single row of SpMV for CSR: y[i] = A[i,:] @ x.
+///
+/// Performs aggressive loop unrolling and prefetching:
+/// - Unrolls in blocks of 16, 8, 4 elements
+/// - Uses mul_add for FMA (Fused Multiply-Add) operations
+/// - Processes column indices and values without bounds checking
+///
+/// # Algorithm
+/// 1. Unroll main loop by 16: accumulates 4 groups of 4 consecutive elements
+/// 2. Unroll remaining by 8: processes 2 groups of 4 elements
+/// 3. Unroll remaining by 4: processes 1 group of 4 elements
+/// 4. Process remaining 1-3 elements serially
+///
+/// # Optimization
+/// - FMA (multiply-add) for higher throughput
+/// - Unsafe bounds checking elimination via preconditions
+/// - Aggressive unrolling for ILP (Instruction-Level Parallelism)
 #[allow(clippy::too_many_lines)]
 #[inline]
 fn spmv_row_f64_i64(a: &Csr<f64, i64>, x: &[f64], i: usize) -> f64 {
@@ -515,7 +593,24 @@ fn spmv_row_f64_i64(a: &Csr<f64, i64>, x: &[f64], i: usize) -> f64 {
     acc
 }
 
-/// y = A @ x
+/// Sparse Matrix-Vector product for CSR format: y = A @ x.
+///
+/// Computes SpMV by processing rows in parallel. Each row computation uses
+/// aggressive loop unrolling with FMA for high throughput.
+///
+/// # Algorithm
+/// 1. Partition rows into ranges (~128K nnz per range)
+/// 2. For each range in parallel:
+///    - Compute rows using `spmv_row_f64_i64` (unrolled row dot product)
+/// 3. Write results directly to output
+///
+/// # Optimization
+/// - Row-based partitioning for load balance
+/// - Each row uses aggressive unrolling (16-way, 8-way, 4-way)
+/// - Avoids parallelization overhead for small problems
+///
+/// # Panics
+/// - If x.len() != ncols
 #[must_use]
 pub fn spmv_f64_i64(a: &Csr<f64, i64>, x: &[f64]) -> Vec<f64> {
     assert_eq!(x.len(), a.ncols, "x length must equal ncols");
@@ -567,6 +662,20 @@ pub fn spmv_f64_i64(a: &Csr<f64, i64>, x: &[f64]) -> Vec<f64> {
 
 // ---------------- SpMM ----------------
 
+/// Sparse Matrix-Matrix product with automatic format selection: Y = A @ B.
+///
+/// Heuristically selects between CSR and CSC formats based on:
+/// - **k** (number of result columns): Prefer CSC for k >= 128
+/// - **Column sparsity**: Prefer CSC if k >= 64 and avg_col_nnz >= 8
+/// - Otherwise: Use CSR with tiled SIMD processing
+///
+/// # Arguments
+/// * `a` - CSR matrix (nrows x ncols)
+/// * `b` - Dense matrix (ncols x k) in row-major order
+/// * `k` - Number of columns in B
+///
+/// # Returns
+/// Dense matrix Y (nrows x k) in row-major order
 #[must_use]
 pub fn spmm_auto_f64_i64(a: &Csr<f64, i64>, b: &[f64], k: usize) -> Vec<f64> {
     assert_eq!(b.len(), a.ncols * k, "B must be ncols x k row-major");
@@ -586,7 +695,27 @@ pub fn spmm_auto_f64_i64(a: &Csr<f64, i64>, b: &[f64], k: usize) -> Vec<f64> {
     }
 }
 
-/// Y = A @ B, where B is (ncols, k) row-major; returns Y as (nrows, k) row-major
+/// Sparse Matrix-Matrix product for CSR format: Y = A @ B.
+///
+/// Computes SpMM by processing each row of A in parallel. Within a row:
+/// - For sparse rows (nnz <= 8) with large k: broadcast A[i,j] across columns of B
+/// - Otherwise: tile B into 128-column blocks, accumulate 4 B columns at a time with SIMD
+///
+/// # Algorithm
+/// 1. For each row i of A in parallel:
+///    a. Iterate 128-column tiles (c0, c1)
+///    b. If row sparse and k large: broadcast A[i,j]*B[j,c] across row
+///    c. Otherwise: accumulate 4 columns at a time with SIMD (f64x4)
+///    d. Process remainder (1-3 columns) serially
+///
+/// # Optimization
+/// - Row parallelization for load balance
+/// - Adaptive processing based on row sparsity
+/// - SIMD tiling for cache locality and throughput
+/// - FMA for high instruction throughput
+///
+/// # Panics
+/// - If b.len() != ncols * k
 #[must_use]
 pub fn spmm_f64_i64(a: &Csr<f64, i64>, b: &[f64], k: usize) -> Vec<f64> {
     assert_eq!(b.len(), a.ncols * k, "B must be ncols x k row-major");
@@ -671,7 +800,28 @@ pub fn spmm_f64_i64(a: &Csr<f64, i64>, b: &[f64], k: usize) -> Vec<f64> {
     y
 }
 
-/// ND SpMM along a specific axis: out = mode-axis product with B (shape[axis] x k)
+/// N-dimensional SpMM (tensor mode-axis product): out = mode-axis product with B.
+///
+/// Multiplies an N-dimensional sparse array A by a dense matrix B along a specified axis,
+/// producing an N-D sparse array with (N-1)+1=N dimensions (axis replaced by k).
+///
+/// # Algorithm
+/// 1. Compute output shape: (non-contracted A axes, k)
+/// 2. For each nonzero A[...] at position (axis_idx=ax):
+///    - Linearize coordinates over (non-contracted A axes)
+///    - For each column c in B[ax, 0:k]:
+///      * Multiply A[...] * B[ax, c]
+///      * Accumulate in output with key=(lin_base + c*stride_k)
+/// 3. Filter zeros and reconstruct N-D indices
+///
+/// # Optimization
+/// - Processes B columns 4 at a time when possible
+/// - Filters zeros during accumulation
+/// - Uses row-major linearization for output shape
+///
+/// # Panics
+/// - If axis >= ndim
+/// - If b.len() != shape[axis] * k
 #[allow(
     clippy::doc_markdown,
     clippy::too_many_lines,
@@ -810,7 +960,27 @@ pub fn spmm_coond_f64_i64(
     CooNd::from_parts_unchecked(out_shape, out_indices, out_data)
 }
 
-/// Y = A @ B for CSC A, B is (ncols, k) row-major
+/// Sparse Matrix-Matrix product for CSC format: Y = A @ B (column-major A).
+///
+/// Computes SpMM by processing tiles of B's columns in parallel. Within a tile:
+/// - Iterate A's columns and accumulate B[j, c:c+tile] * A[i,j] contributions
+/// - Use SIMD (f64x4) for 4 columns at a time
+///
+/// # Algorithm
+/// 1. Partition B's columns into tiles of 128 columns
+/// 2. For each tile in parallel:
+///    a. For each A column j:
+///       - For each (i, A[i,j]) in column j:
+///         * Accumulate B[j, c:c+tile] * A[i,j] into Y[i*k + c:c+tile]
+///    b. Use SIMD for groups of 4 columns; process remainder serially
+///
+/// # Optimization
+/// - Column-based B partitioning for cache locality
+/// - SIMD processing of 4 result columns per iteration
+/// - Thread-level parallelism over B's column tiles
+///
+/// # Panics
+/// - If b.len() != ncols * k
 #[must_use]
 pub fn spmm_csc_f64_i64(a: &Csc<f64, i64>, b: &[f64], k: usize) -> Vec<f64> {
     assert_eq!(b.len(), a.ncols * k, "B must be ncols x k row-major");
@@ -870,7 +1040,27 @@ pub fn spmm_csc_f64_i64(a: &Csc<f64, i64>, b: &[f64], k: usize) -> Vec<f64> {
     y
 }
 
-/// Y = A @ B for COO A, B is (ncols, k) row-major
+/// Sparse Matrix-Matrix product for COO format: Y = A @ B.
+///
+/// Computes SpMM by processing tiles of B's columns in parallel. For each COO entry:
+/// - Multiply A[i,j] by B[j, c:c+tile]
+/// - Accumulate into Y[i*k + c:c+tile]
+/// - Use SIMD (f64x4) for 4 columns at a time
+///
+/// # Algorithm
+/// 1. Partition B's columns into tiles of 128 columns
+/// 2. For each tile in parallel:
+///    a. For each nonzero (i, j, A[i,j]):
+///       - Accumulate B[j, c:c+tile] * A[i,j] into Y[i*k + c:c+tile]
+///    b. Use SIMD for groups of 4 columns; process remainder serially
+///
+/// # Optimization
+/// - Column-based B partitioning
+/// - SIMD processing of 4 result columns per iteration
+/// - Thread-level parallelism over B's column tiles
+///
+/// # Panics
+/// - If b.len() != ncols * k
 #[must_use]
 pub fn spmm_coo_f64_i64(a: &Coo<f64, i64>, b: &[f64], k: usize) -> Vec<f64> {
     assert_eq!(b.len(), a.ncols * k, "B must be ncols x k row-major");
