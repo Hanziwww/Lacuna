@@ -1,4 +1,8 @@
 //! Prune small entries (utility function, not standard Array API)
+//
+// This module implements utility functions to prune (remove) small entries from sparse matrices in CSR, CSC, COO, and COOND formats.
+// Entries with absolute value less than or equal to a given epsilon are removed. Parallelization and SIMD are used for performance.
+// Handles edge cases such as negative epsilon, zero epsilon, and empty matrices. Not part of the standard Array API.
 
 use lacuna_core::{Coo, CooNd, Csc, Csr};
 use rayon::prelude::*;
@@ -6,6 +10,7 @@ use wide::f64x4;
 
 const SMALL_NNZ_PRUNE: usize = 16384;
 
+/// Convert i64 to usize, asserting non-negativity.
 #[inline]
 fn i64_to_usize(x: i64) -> usize {
     debug_assert!(x >= 0);
@@ -15,6 +20,7 @@ fn i64_to_usize(x: i64) -> usize {
     }
 }
 
+/// Convert usize to i64, asserting that the value fits.
 #[inline]
 fn usize_to_i64(x: usize) -> i64 {
     debug_assert!(i64::try_from(x).is_ok());
@@ -24,6 +30,8 @@ fn usize_to_i64(x: usize) -> i64 {
     }
 }
 
+/// Count the number of entries in `values` whose absolute value exceeds `eps`.
+/// Uses SIMD for performance.
 #[inline]
 fn count_significant(values: &[f64], eps: f64) -> usize {
     let mut retained = 0usize;
@@ -58,6 +66,7 @@ fn count_significant(values: &[f64], eps: f64) -> usize {
     retained
 }
 
+/// Copy entries whose absolute value exceeds `eps` from source to destination arrays.
 #[inline]
 fn copy_significant_entries(
     source_indices: &[i64],
@@ -76,6 +85,8 @@ fn copy_significant_entries(
     }
 }
 
+/// Prune entries in a COOND array whose absolute value is less than or equal to `eps`.
+/// Returns a new COOND array with only significant entries. Negative epsilon disables pruning.
 #[must_use]
 pub fn prune_eps_coond(a: &CooNd<f64, i64>, eps: f64) -> CooNd<f64, i64> {
     if eps < 0.0 {
@@ -101,6 +112,8 @@ pub fn prune_eps_coond(a: &CooNd<f64, i64>, eps: f64) -> CooNd<f64, i64> {
     CooNd::from_parts_unchecked(a.shape.clone(), indices, data)
 }
 
+/// Prune entries in a CSC matrix whose absolute value is less than or equal to `eps`.
+/// Returns a new CSC matrix with only significant entries. Negative epsilon disables pruning.
 #[must_use]
 pub fn prune_eps_csc(a: &Csc<f64, i64>, eps: f64) -> Csc<f64, i64> {
     if eps < 0.0 {
@@ -195,6 +208,8 @@ pub fn prune_eps_csc(a: &Csc<f64, i64>, eps: f64) -> Csc<f64, i64> {
     Csc::from_parts_unchecked(a.nrows, ncols, indptr, indices, data)
 }
 
+/// Prune entries in a COO matrix whose absolute value is less than or equal to `eps`.
+/// Returns a new COO matrix with only significant entries. Negative epsilon disables pruning.
 #[must_use]
 pub fn prune_eps_coo(a: &Coo<f64, i64>, eps: f64) -> Coo<f64, i64> {
     if eps < 0.0 {
@@ -214,6 +229,8 @@ pub fn prune_eps_coo(a: &Coo<f64, i64>, eps: f64) -> Coo<f64, i64> {
     Coo::from_parts_unchecked(a.nrows, a.ncols, row, col, data)
 }
 
+/// Prune entries in a CSR matrix whose absolute value is less than or equal to `eps`.
+/// Returns a new CSR matrix with only significant entries. Negative epsilon disables pruning.
 #[must_use]
 pub fn prune_eps(a: &Csr<f64, i64>, eps: f64) -> Csr<f64, i64> {
     if eps < 0.0 {

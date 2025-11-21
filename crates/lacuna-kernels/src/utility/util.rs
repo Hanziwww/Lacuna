@@ -1,11 +1,23 @@
+//! Utility constants, types, and hash map for sparse matrix operations
+//
+// This module provides constants for block sizes, type aliases for parallel accumulators,
+// and a custom hash map for accumulating values by index. Used throughout kernels for performance.
+
+/// Stripe/block size for parallel reductions and accumulators
 pub const STRIPE: usize = 8192;
+/// Stripe/block size for row-wise operations
 pub const STRIPE_ROWS: usize = 8192;
+/// Threshold for switching between dense and sparse algorithms (dimension)
 pub const SMALL_DIM_LIMIT: usize = 2048;
+/// Threshold for switching between dense and sparse algorithms (nnz)
 pub const SMALL_NNZ_LIMIT: usize = 32 * 1024;
 
+/// Type alias for a dense stripe accumulator: (values, seen mask, touched indices)
 pub type DenseStripe = (Vec<f64>, Vec<u8>, Vec<usize>);
+/// Type alias for a vector of optional dense stripe accumulators
 pub type StripeAccs = Vec<Option<DenseStripe>>;
 
+/// Convert i64 to usize, asserting non-negativity.
 #[inline]
 #[must_use]
 pub fn i64_to_usize(x: i64) -> usize {
@@ -16,6 +28,8 @@ pub fn i64_to_usize(x: i64) -> usize {
     }
 }
 
+/// A custom hash map for accumulating f64 values by usize index.
+/// Used for parallel reductions in sparse matrix kernels.
 pub struct UsizeF64Map {
     keys: Vec<usize>,
     vals: Vec<f64>,
@@ -24,6 +38,7 @@ pub struct UsizeF64Map {
 }
 
 impl UsizeF64Map {
+    /// Create a new map with at least the given capacity.
     #[inline]
     #[must_use]
     pub fn with_capacity(cap: usize) -> Self {
@@ -39,11 +54,14 @@ impl UsizeF64Map {
         }
     }
 
+    /// Hash function for keys (multiplicative, avalanche)
     #[inline]
     const fn hash(key: usize) -> usize {
         key.wrapping_mul(0x9E37_79B9_7F4A_7C15usize)
     }
 
+    /// Insert a value for a key, adding to any existing value.
+    /// Grows the map if load factor exceeds 0.7.
     #[inline]
     pub fn insert_add(&mut self, key: usize, val: f64) {
         debug_assert!(key != usize::MAX);
@@ -71,6 +89,7 @@ impl UsizeF64Map {
         }
     }
 
+    /// Grow the map to double its previous capacity, rehashing all entries.
     #[inline]
     fn grow(&mut self) {
         let new_cap = self.keys.len() * 2;
@@ -97,6 +116,7 @@ impl UsizeF64Map {
         self.mask = new_mask;
     }
 
+    /// Drain all entries into the provided output slice, adding values by key.
     #[inline]
     pub fn drain_to(&mut self, out: &mut [f64]) {
         let len = self.keys.len();
@@ -111,6 +131,7 @@ impl UsizeF64Map {
         }
     }
 
+    /// Return all (key, value) pairs in the map as a vector.
     #[inline]
     #[must_use]
     pub fn pairs(&self) -> Vec<(usize, f64)> {
