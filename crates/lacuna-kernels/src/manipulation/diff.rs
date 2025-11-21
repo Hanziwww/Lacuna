@@ -108,9 +108,10 @@ pub fn diff_csr_axis1_f64_i64(a: &Csr<f64, i64>, n: usize) -> Csr<f64, i64> {
         .collect();
     let mut indptr = vec![0i64; nrows + 1];
     for i in 0..nrows {
-        indptr[i + 1] = indptr[i] + (counts[i] as i64);
+        let add = i64::try_from(counts[i]).expect("row nnz count exceeds i64");
+        indptr[i + 1] = indptr[i] + add;
     }
-    let total = indptr[nrows] as usize;
+    let total = i64_to_usize(indptr[nrows]);
     let mut indices = vec![0i64; total];
     let mut data = vec![0.0f64; total];
     let pi_addr = indices.as_mut_ptr() as usize;
@@ -133,7 +134,10 @@ pub fn diff_csr_axis1_f64_i64(a: &Csr<f64, i64>, n: usize) -> Csr<f64, i64> {
             unsafe {
                 let pi = pi_addr as *mut i64;
                 let pv = pv_addr as *mut f64;
-                std::ptr::write(pi.add(row_start + k), c as i64);
+                std::ptr::write(
+                    pi.add(row_start + k),
+                    i64::try_from(c).expect("col index exceeds i64"),
+                );
                 std::ptr::write(pv.add(row_start + k), v);
             }
         }

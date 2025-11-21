@@ -75,7 +75,7 @@ pub fn min_f64(a: &Csr<f64, i64>) -> f64 {
         .map(chunk_min)
         .reduce(|| f64::INFINITY, f64::min);
 
-    let full = a.nrows.checked_mul(a.ncols).unwrap_or(usize::MAX);
+    let full = a.nrows.saturating_mul(a.ncols);
     if nnz < full {
         data_min.min(0.0)
     } else {
@@ -95,7 +95,7 @@ pub fn max_f64(a: &Csr<f64, i64>) -> f64 {
         .map(chunk_max)
         .reduce(|| f64::NEG_INFINITY, f64::max);
 
-    let full = a.nrows.checked_mul(a.ncols).unwrap_or(usize::MAX);
+    let full = a.nrows.saturating_mul(a.ncols);
     if nnz < full {
         data_max.max(0.0)
     } else {
@@ -172,7 +172,7 @@ pub fn min_csc_f64(a: &Csc<f64, i64>) -> f64 {
         .par_chunks(4096)
         .map(chunk_min)
         .reduce(|| f64::INFINITY, f64::min);
-    let full = a.nrows.checked_mul(a.ncols).unwrap_or(usize::MAX);
+    let full = a.nrows.saturating_mul(a.ncols);
     if a.data.len() < full {
         data_min.min(0.0)
     } else {
@@ -190,7 +190,7 @@ pub fn max_csc_f64(a: &Csc<f64, i64>) -> f64 {
         .par_chunks(4096)
         .map(chunk_max)
         .reduce(|| f64::NEG_INFINITY, f64::max);
-    let full = a.nrows.checked_mul(a.ncols).unwrap_or(usize::MAX);
+    let full = a.nrows.saturating_mul(a.ncols);
     if a.data.len() < full {
         data_max.max(0.0)
     } else {
@@ -267,7 +267,7 @@ pub fn min_coo_f64(a: &Coo<f64, i64>) -> f64 {
         .par_chunks(4096)
         .map(chunk_min)
         .reduce(|| f64::INFINITY, f64::min);
-    let full = a.nrows.checked_mul(a.ncols).unwrap_or(usize::MAX);
+    let full = a.nrows.saturating_mul(a.ncols);
     if a.data.len() < full {
         data_min.min(0.0)
     } else {
@@ -285,7 +285,7 @@ pub fn max_coo_f64(a: &Coo<f64, i64>) -> f64 {
         .par_chunks(4096)
         .map(chunk_max)
         .reduce(|| f64::NEG_INFINITY, f64::max);
-    let full = a.nrows.checked_mul(a.ncols).unwrap_or(usize::MAX);
+    let full = a.nrows.saturating_mul(a.ncols);
     if a.data.len() < full {
         data_max.max(0.0)
     } else {

@@ -149,11 +149,11 @@ impl Csc<f64, i64> {
     ///
     /// # Safety
     /// Caller must ensure:
-    /// - indptr.len() == ncols + 1
-    /// - indices.len() == data.len() == nnz
-    /// - indptr[0] == 0 and indptr[ncols] == nnz
-    /// - indptr is non-decreasing
-    /// - For each column: row indices are strictly increasing and within [0, nrows)
+    /// - `indptr.len()` == ncols + 1
+    /// - `indices.len()` == `data.len()` == nnz
+    /// - `indptr[0] == 0` and `indptr[ncols] == nnz`
+    /// - `indptr` is non-decreasing
+    /// - For each column: row indices are strictly increasing and within `[0, nrows)`
     #[inline]
     #[must_use]
     pub const fn from_parts_unchecked(

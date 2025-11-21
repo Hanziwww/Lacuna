@@ -38,7 +38,7 @@ use thread_local::ThreadLocal;
 /// Right multiplication: y = A @ x (CSR matrix, axis 1).
 ///
 /// Computes the dot product of each row of matrix A with vector x.
-/// **Mathematical operation**: y[i] = sum_j A[i, j] * x[j]
+/// **Mathematical operation**: y[i] = `sum_j` A[i, j] * x[j]
 ///
 /// **Algorithm**: Delegates directly to `spmv_f64_i64` which uses row-oriented sparse
 /// matrix-vector product optimized for CSR format.
@@ -53,7 +53,7 @@ use thread_local::ThreadLocal;
 /// Vector of length m containing the resulting dot products.
 ///
 /// # Panics
-/// Panics if x.len() != a.ncols
+/// Panics if `x.len()` != a.ncols
 #[must_use]
 pub fn vecdot_csr_dense_axis1_f64_i64(a: &Csr<f64, i64>, x: &[f64]) -> Vec<f64> {
     assert_eq!(x.len(), a.ncols, "x length must equal ncols");
@@ -63,7 +63,7 @@ pub fn vecdot_csr_dense_axis1_f64_i64(a: &Csr<f64, i64>, x: &[f64]) -> Vec<f64> 
 /// Left multiplication: y = x^T @ A (CSR matrix, axis 0).
 ///
 /// Computes the weighted sum across rows: each output column j is the sum of rows,
-/// weighted by the input vector x. **Mathematical operation**: y[j] = sum_i x[i] * A[i, j]
+/// weighted by the input vector x. **Mathematical operation**: y[j] = `sum_i` x[i] * A[i, j]
 ///
 /// **Algorithm**: Uses stripe-accumulator pattern with memory-aware parallelization:
 /// 1. Chunk rows into contiguous segments with target ~128KB accumulated nonzeros per segment
@@ -185,7 +185,7 @@ pub fn vecdot_csr_dense_axis0_f64_i64(a: &Csr<f64, i64>, x: &[f64]) -> Vec<f64> 
 /// Right multiplication: y = A @ x (CSC matrix, axis 1).
 ///
 /// Computes the dot product of each row of matrix A with vector x.
-/// **Mathematical operation**: y[i] = sum_j A[i, j] * x[j]
+/// **Mathematical operation**: y[i] = `sum_j` A[i, j] * x[j]
 ///
 /// **Algorithm**: Delegates to `spmv_csc_f64_i64` which computes SpMV by iterating columns
 /// and scattering their contributions to output rows (column-oriented approach).
@@ -200,7 +200,7 @@ pub fn vecdot_csr_dense_axis0_f64_i64(a: &Csr<f64, i64>, x: &[f64]) -> Vec<f64> 
 /// Vector of length m containing the resulting dot products.
 ///
 /// # Panics
-/// Panics if x.len() != a.ncols
+/// Panics if `x.len()` != a.ncols
 #[must_use]
 pub fn vecdot_csc_dense_axis1_f64_i64(a: &Csc<f64, i64>, x: &[f64]) -> Vec<f64> {
     assert_eq!(x.len(), a.ncols, "x length must equal ncols");
@@ -214,7 +214,7 @@ pub fn vecdot_csc_dense_axis1_f64_i64(a: &Csc<f64, i64>, x: &[f64]) -> Vec<f64> 
 /// Left multiplication: y = x^T @ A (CSC matrix, axis 0).
 ///
 /// Computes the weighted sum across rows: each output column j is the sum of rows,
-/// weighted by the input vector x. **Mathematical operation**: y[j] = sum_i x[i] * A[i, j]
+/// weighted by the input vector x. **Mathematical operation**: y[j] = `sum_i` x[i] * A[i, j]
 ///
 /// **Algorithm**: Parallelizes over columns (CSC format is column-native), computing each
 /// output element as a dot product of column j with the weight vector x.
@@ -238,7 +238,7 @@ pub fn vecdot_csc_dense_axis1_f64_i64(a: &Csc<f64, i64>, x: &[f64]) -> Vec<f64> 
 /// Vector of length n containing weighted column dot products.
 ///
 /// # Panics
-/// Panics if x.len() != a.nrows
+/// Panics if `x.len()` != a.nrows
 #[must_use]
 pub fn vecdot_csc_dense_axis0_f64_i64(a: &Csc<f64, i64>, x: &[f64]) -> Vec<f64> {
     assert_eq!(x.len(), a.nrows, "x length must equal nrows");
@@ -435,7 +435,7 @@ pub fn vecdot_coo_dense_axis1_f64_i64(a: &Coo<f64, i64>, x: &[f64]) -> Vec<f64> 
 /// Vector of length n containing weighted column sums.
 ///
 /// # Panics
-/// Panics if x.len() != a.nrows; returns zero vector if ncols == 0 or nnz == 0.
+/// Panics if `x.len()` != a.nrows; returns zero vector if ncols == 0 or nnz == 0.
 #[must_use]
 pub fn vecdot_coo_dense_axis0_f64_i64(a: &Coo<f64, i64>, x: &[f64]) -> Vec<f64> {
     assert_eq!(x.len(), a.nrows, "x length must equal nrows");
@@ -472,12 +472,12 @@ pub fn vecdot_coo_dense_axis0_f64_i64(a: &Coo<f64, i64>, x: &[f64]) -> Vec<f64> 
     out
 }
 
-/// N-dimensional tensor-vector contraction along a specified axis (CooNd tensor, arbitrary axis).
+/// N-dimensional tensor-vector contraction along a specified axis (`CooNd` tensor, arbitrary axis).
 ///
 /// Generalizes vector-matrix multiplication to tensors: contracts an N-dimensional sparse tensor
 /// along the specified axis with a weight vector, producing an (N-1)-dimensional tensor.
-/// **Mathematical operation**: For each tuple of indices (i0, i1, ..., i_{axis-1}, i_{axis+1}, ..., i_n),
-/// the result is sum_k tensor[i0, i1, ..., i_{axis-1}, k, i_{axis+1}, ..., i_n] * x[k]
+/// **Mathematical operation**: For each tuple of indices (i0, i1, ..., i_{axis-1}, i_{axis+1}, ..., `i_n`),
+/// the result is `sum_k` tensor[i0, i1, ..., i_{axis-1}, k, i_{axis+1}, ..., `i_n`] * x[k]
 ///
 /// **Algorithm**: Delegates to `spmv_coond_f64_i64` which linearizes the tensor along the contraction
 /// axis and applies SpMV-like logic with axis-specific stride and delinearization.
@@ -485,15 +485,15 @@ pub fn vecdot_coo_dense_axis0_f64_i64(a: &Coo<f64, i64>, x: &[f64]) -> Vec<f64> 
 /// **Complexity**: O(nnz(a)) time, O(nnz(output)) space.
 ///
 /// # Arguments
-/// * `a` - CooNd sparse tensor
-/// * `axis` - Axis along which to contract (must be < a.shape.len())
+/// * `a` - `CooNd` sparse tensor
+/// * `axis` - Axis along which to contract (must be < `a.shape.len()`)
 /// * `x` - Dense weight vector of length a.shape[axis]
 ///
 /// # Returns
-/// CooNd tensor with shape = original shape minus the contracted axis.
+/// `CooNd` tensor with shape = original shape minus the contracted axis.
 ///
 /// # Panics
-/// Panics if axis >= a.shape.len() or x.len() != a.shape[axis]
+/// Panics if axis >= `a.shape.len()` or `x.len()` != a.shape[axis]
 #[must_use]
 pub fn vecdot_coond_dense_axis_f64_i64(
     a: &CooNd<f64, i64>,

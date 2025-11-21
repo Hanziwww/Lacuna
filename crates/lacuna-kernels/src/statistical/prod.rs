@@ -1,4 +1,4 @@
-//! Product reductions: prod, row_prods, col_prods (CSR/CSC/COO) and global COOND
+//! Product reductions: prod, `row_prods`, `col_prods` (CSR/CSC/COO) and global COOND
 
 #![allow(
     clippy::many_single_char_names,
@@ -27,7 +27,7 @@ fn chunk_prod(chunk: &[f64]) -> f64 {
             let p = chunk.as_ptr().add(i).cast::<[f64; 4]>();
             f64x4::new(core::ptr::read_unaligned(p))
         };
-        accv = accv * v;
+        accv *= v;
         i += 4;
     }
     let arr = accv.to_array();
@@ -50,7 +50,7 @@ fn product_checked(dims: &[usize]) -> usize {
 
 #[must_use]
 pub fn prod_f64(a: &Csr<f64, i64>) -> f64 {
-    let full = a.nrows.checked_mul(a.ncols).unwrap_or(usize::MAX);
+    let full = a.nrows.saturating_mul(a.ncols);
     if full == 0 {
         return 1.0;
     }
@@ -96,7 +96,7 @@ pub fn col_prods_f64(a: &Csr<f64, i64>) -> Vec<f64> {
 
 #[must_use]
 pub fn prod_csc_f64(a: &Csc<f64, i64>) -> f64 {
-    let full = a.nrows.checked_mul(a.ncols).unwrap_or(usize::MAX);
+    let full = a.nrows.saturating_mul(a.ncols);
     if full == 0 {
         return 1.0;
     }
@@ -142,7 +142,7 @@ pub fn row_prods_csc_f64(a: &Csc<f64, i64>) -> Vec<f64> {
 
 #[must_use]
 pub fn prod_coo_f64(a: &Coo<f64, i64>) -> f64 {
-    let full = a.nrows.checked_mul(a.ncols).unwrap_or(usize::MAX);
+    let full = a.nrows.saturating_mul(a.ncols);
     if full == 0 {
         return 1.0;
     }

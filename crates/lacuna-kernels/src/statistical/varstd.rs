@@ -14,6 +14,10 @@ use std::cell::RefCell;
 use thread_local::ThreadLocal;
 use wide::f64x4;
 
+// Type aliases to reduce complexity in ThreadLocal accumulator types
+type AccEntry = (Vec<f64>, Vec<f64>, Vec<u8>, Vec<usize>);
+type AccTls = ThreadLocal<RefCell<Vec<Option<AccEntry>>>>;
+
 #[inline]
 fn chunk_sum_sum2(chunk: &[f64]) -> (f64, f64) {
     if chunk.is_empty() {
@@ -47,6 +51,7 @@ fn chunk_sum_sum2(chunk: &[f64]) -> (f64, f64) {
 }
 
 #[inline]
+#[allow(clippy::cast_precision_loss)]
 fn variance_from_sums(s: f64, s2: f64, n: usize, correction: f64) -> f64 {
     if n == 0 {
         return 0.0;
@@ -70,7 +75,7 @@ fn std_from_var(v: f64) -> f64 {
 
 #[must_use]
 pub fn var_f64(a: &Csr<f64, i64>, correction: f64) -> f64 {
-    let n = a.nrows.checked_mul(a.ncols).unwrap_or(usize::MAX);
+    let n = a.nrows.saturating_mul(a.ncols);
     if n == 0 {
         return 0.0;
     }
@@ -132,7 +137,7 @@ pub fn col_stds_f64(a: &Csr<f64, i64>, correction: f64) -> Vec<f64> {
 
 #[must_use]
 pub fn var_csc_f64(a: &Csc<f64, i64>, correction: f64) -> f64 {
-    let n = a.nrows.checked_mul(a.ncols).unwrap_or(usize::MAX);
+    let n = a.nrows.saturating_mul(a.ncols);
     if n == 0 {
         return 0.0;
     }
@@ -194,7 +199,7 @@ pub fn row_stds_csc_f64(a: &Csc<f64, i64>, correction: f64) -> Vec<f64> {
 
 #[must_use]
 pub fn var_coo_f64(a: &Coo<f64, i64>, correction: f64) -> f64 {
-    let n = a.nrows.checked_mul(a.ncols).unwrap_or(usize::MAX);
+    let n = a.nrows.saturating_mul(a.ncols);
     if n == 0 {
         return 0.0;
     }
@@ -224,8 +229,7 @@ pub fn row_vars_coo_f64(a: &Coo<f64, i64>, correction: f64) -> Vec<f64> {
     let nnz = a.data.len();
     let nstripes = nrows.div_ceil(STRIPE);
     // acc: (sum, sumsq, seen, touched)
-    let tls: ThreadLocal<RefCell<Vec<Option<(Vec<f64>, Vec<f64>, Vec<u8>, Vec<usize>)>>>> =
-        ThreadLocal::new();
+    let tls: AccTls = ThreadLocal::new();
     let chunk = 1.max(nnz / (rayon::current_num_threads().max(1) * 8));
     (0..nnz.div_ceil(chunk)).into_par_iter().for_each(|t| {
         let start = t * chunk;
@@ -301,8 +305,7 @@ pub fn col_vars_coo_f64(a: &Coo<f64, i64>, correction: f64) -> Vec<f64> {
     }
     let nnz = a.data.len();
     let nstripes = ncols.div_ceil(STRIPE);
-    let tls: ThreadLocal<RefCell<Vec<Option<(Vec<f64>, Vec<f64>, Vec<u8>, Vec<usize>)>>>> =
-        ThreadLocal::new();
+    let tls: AccTls = ThreadLocal::new();
     let chunk = 1.max(nnz / (rayon::current_num_threads().max(1) * 8));
     (0..nnz.div_ceil(chunk)).into_par_iter().for_each(|t| {
         let start = t * chunk;

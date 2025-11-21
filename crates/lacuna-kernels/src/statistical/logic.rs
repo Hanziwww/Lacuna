@@ -25,7 +25,7 @@ fn product_checked(dims: &[usize]) -> usize {
 
 #[must_use]
 pub fn all_f64(a: &Csr<f64, i64>) -> bool {
-    let full = a.nrows.checked_mul(a.ncols).unwrap_or(usize::MAX);
+    let full = a.nrows.saturating_mul(a.ncols);
     if full == 0 {
         return true;
     }
@@ -38,7 +38,7 @@ pub fn all_f64(a: &Csr<f64, i64>) -> bool {
 
 #[must_use]
 pub fn any_f64(a: &Csr<f64, i64>) -> bool {
-    let full = a.nrows.checked_mul(a.ncols).unwrap_or(usize::MAX);
+    let full = a.nrows.saturating_mul(a.ncols);
     if full == 0 {
         return false;
     }
@@ -64,7 +64,7 @@ pub fn row_alls_f64(a: &Csr<f64, i64>) -> Vec<bool> {
             *oi = false;
         } else {
             let row = &a.data[s..e];
-            *oi = !row.iter().any(|&x| x == 0.0);
+            *oi = !row.contains(&0.0);
         }
     });
     out
@@ -108,7 +108,7 @@ pub fn col_anys_f64(a: &Csr<f64, i64>) -> Vec<bool> {
 
 #[must_use]
 pub fn all_csc_f64(a: &Csc<f64, i64>) -> bool {
-    let full = a.nrows.checked_mul(a.ncols).unwrap_or(usize::MAX);
+    let full = a.nrows.saturating_mul(a.ncols);
     if full == 0 {
         return true;
     }
@@ -120,7 +120,7 @@ pub fn all_csc_f64(a: &Csc<f64, i64>) -> bool {
 
 #[must_use]
 pub fn any_csc_f64(a: &Csc<f64, i64>) -> bool {
-    let full = a.nrows.checked_mul(a.ncols).unwrap_or(usize::MAX);
+    let full = a.nrows.saturating_mul(a.ncols);
     if full == 0 {
         return false;
     }
@@ -158,7 +158,7 @@ pub fn col_alls_csc_f64(a: &Csc<f64, i64>) -> Vec<bool> {
             *oj = false;
         } else {
             let col = &a.data[s..e];
-            *oj = !col.iter().any(|&x| x == 0.0);
+            *oj = !col.contains(&0.0);
         }
     });
     out

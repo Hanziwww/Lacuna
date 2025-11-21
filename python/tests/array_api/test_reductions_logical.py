@@ -54,21 +54,13 @@ def test_all_any_global_and_axes(maker, keepdims):
     # axis=0 and axis=1
     col_any = xp.any(a, axis=0, keepdims=keepdims)
     row_any = xp.any(a, axis=1, keepdims=keepdims)
-    np.testing.assert_array_equal(
-        np.asarray(col_any), np.asarray(A).any(axis=0, keepdims=keepdims)
-    )
-    np.testing.assert_array_equal(
-        np.asarray(row_any), np.asarray(A).any(axis=1, keepdims=keepdims)
-    )
+    np.testing.assert_array_equal(np.asarray(col_any), np.asarray(A).any(axis=0, keepdims=keepdims))
+    np.testing.assert_array_equal(np.asarray(row_any), np.asarray(A).any(axis=1, keepdims=keepdims))
 
     col_all = xp.all(a, axis=0, keepdims=keepdims)
     row_all = xp.all(a, axis=1, keepdims=keepdims)
-    np.testing.assert_array_equal(
-        np.asarray(col_all), np.asarray(A).all(axis=0, keepdims=keepdims)
-    )
-    np.testing.assert_array_equal(
-        np.asarray(row_all), np.asarray(A).all(axis=1, keepdims=keepdims)
-    )
+    np.testing.assert_array_equal(np.asarray(col_all), np.asarray(A).all(axis=0, keepdims=keepdims))
+    np.testing.assert_array_equal(np.asarray(row_all), np.asarray(A).all(axis=1, keepdims=keepdims))
 
 
 @pytest.mark.parametrize("maker", [_mk_csr, _mk_csc, _mk_coo])

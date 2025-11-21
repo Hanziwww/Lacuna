@@ -44,7 +44,7 @@ impl<T, I> Coo<T, I> {
 }
 
 impl Coo<f64, i64> {
-    /// Constructs a Coo<f64, i64> from parts, with optional bounds checking.
+    /// Constructs a `Coo<f64, i64>` from parts, with optional bounds checking.
     ///
     /// # Arguments
     /// * `nrows` - Number of rows in the matrix
@@ -96,7 +96,7 @@ impl Coo<f64, i64> {
         })
     }
 
-    /// Constructs a Coo<f64, i64> from parts without any checks.
+    /// Constructs a `Coo<f64, i64>` from parts without any checks.
     ///
     /// # Safety
     /// Caller must ensure inputs are valid.
@@ -151,7 +151,7 @@ impl<T, I> CooNd<T, I> {
 }
 
 impl CooNd<f64, i64> {
-    /// Constructs a CooNd<f64, i64> from parts, with optional bounds checking.
+    /// Constructs a `CooNd<f64, i64>` from parts, with optional bounds checking.
     ///
     /// # Arguments
     /// * `shape` - Shape of the ND array (length = ndim)
@@ -209,7 +209,7 @@ impl CooNd<f64, i64> {
         })
     }
 
-    /// Constructs a CooNd<f64, i64> from parts without any checks.
+    /// Constructs a `CooNd<f64, i64>` from parts without any checks.
     ///
     /// # Safety
     /// Caller must ensure inputs are valid.

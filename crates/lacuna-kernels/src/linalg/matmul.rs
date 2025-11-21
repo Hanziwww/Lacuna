@@ -972,6 +972,7 @@ pub fn spmm_coond_f64_i64(
 ///    a. For each A column j:
 ///       - For each (i, A[i,j]) in column j:
 ///         * Accumulate B[j, c:c+tile] * A[i,j] into Y[i*k + c:c+tile]
+///
 ///    b. Use SIMD for groups of 4 columns; process remainder serially
 ///
 /// # Optimization
@@ -1052,6 +1053,7 @@ pub fn spmm_csc_f64_i64(a: &Csc<f64, i64>, b: &[f64], k: usize) -> Vec<f64> {
 /// 2. For each tile in parallel:
 ///    a. For each nonzero (i, j, A[i,j]):
 ///       - Accumulate B[j, c:c+tile] * A[i,j] into Y[i*k + c:c+tile]
+///
 ///    b. Use SIMD for groups of 4 columns; process remainder serially
 ///
 /// # Optimization
