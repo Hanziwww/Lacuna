@@ -1,0 +1,100 @@
+<svg xmlns='http://www.w3.org/2000/svg' width='1095' height='452' viewBox='0 0 1095 452'>
+<defs>
+<linearGradient id='grad-low' x1='0%' y1='0%' x2='0%' y2='100%'>
+<stop offset='0%' style='stop-color:#f87171;stop-opacity:1' />
+<stop offset='100%' style='stop-color:#dc2626;stop-opacity:1' />
+</linearGradient>
+<linearGradient id='grad-mid' x1='0%' y1='0%' x2='0%' y2='100%'>
+<stop offset='0%' style='stop-color:#fbbf24;stop-opacity:1' />
+<stop offset='100%' style='stop-color:#f59e0b;stop-opacity:1' />
+</linearGradient>
+<linearGradient id='grad-high' x1='0%' y1='0%' x2='0%' y2='100%'>
+<stop offset='0%' style='stop-color:#34d399;stop-opacity:1' />
+<stop offset='100%' style='stop-color:#10b981;stop-opacity:1' />
+</linearGradient>
+<linearGradient id='grad-low-dark' x1='0%' y1='0%' x2='0%' y2='100%'>
+<stop offset='0%' style='stop-color:#f87171;stop-opacity:1' />
+<stop offset='100%' style='stop-color:#ef4444;stop-opacity:1' />
+</linearGradient>
+<linearGradient id='grad-mid-dark' x1='0%' y1='0%' x2='0%' y2='100%'>
+<stop offset='0%' style='stop-color:#fbbf24;stop-opacity:1' />
+<stop offset='100%' style='stop-color:#d97706;stop-opacity:1' />
+</linearGradient>
+<linearGradient id='grad-high-dark' x1='0%' y1='0%' x2='0%' y2='100%'>
+<stop offset='0%' style='stop-color:#34d399;stop-opacity:1' />
+<stop offset='100%' style='stop-color:#059669;stop-opacity:1' />
+</linearGradient>
+<filter id='shadow'>
+<feDropShadow dx='0' dy='1' stdDeviation='2' flood-opacity='0.1'/>
+</filter>
+<style><![CDATA[
+  :root{
+    --card-bg:#ffffff;
+    --card-stroke:#e5e7eb;
+    --text-primary:#111111;
+    --text-secondary:#222222;
+    --text-meta:#6b7280;
+    --bar-bg:#f1f5f9;
+    --bar-border:#e2e8f0;
+    --pct-stroke:#ffffff;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{
+      --card-bg:#0d1117;
+      --card-stroke:#30363d;
+      --text-primary:#e6edf3;
+      --text-secondary:#e6edf3;
+      --text-meta:#8b949e;
+      --bar-bg:#1c2128;
+      --bar-border:#30363d;
+      --pct-stroke:#0d1117;
+    }
+  }
+  .card{ fill: var(--card-bg); stroke: var(--card-stroke); stroke-width: 1; }
+  .title{font: 700 22px system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif; fill: var(--text-primary);}
+  .label{font: 600 14px system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif; fill: var(--text-primary);}
+  .sub{font: 700 15px system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif; fill: var(--text-primary);}
+  .pct{font: 600 13px system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif; fill: var(--text-primary); paint-order: stroke; stroke: var(--pct-stroke); stroke-width: 2px;}
+  .pct.on-fill{ fill:#ffffff; }
+  .meta{font: 400 12px system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif; fill: var(--text-meta);}
+  .bar-bg{ fill: var(--bar-bg); stroke: var(--bar-border); stroke-width: 1; }
+  @media (prefers-color-scheme: light){
+    .bar-fill-low{ fill: url(#grad-low); }
+    .bar-fill-mid{ fill: url(#grad-mid); }
+    .bar-fill-high{ fill: url(#grad-high); }
+  }
+  @media (prefers-color-scheme: dark){
+    .bar-fill-low{ fill: url(#grad-low-dark); }
+    .bar-fill-mid{ fill: url(#grad-mid-dark); }
+    .bar-fill-high{ fill: url(#grad-high-dark); }
+  }
+]]></style>
+</defs>
+<rect class='card' x='0' y='0' width='1095' height='452' rx='10' ry='10' />
+<text class='title' x='24' y='48'>Array API Roadmap</text>
+<text class='meta' x='24' y='72'>Source: docs/TODO.md · Updated by CI</text>
+<text class='label' x='24' y='110.0' dominant-baseline='middle'>1.1 linalg</text>
+<rect class='bar-bg' x='531' y='92' width='540' height='36' rx='10' ry='10' />
+<rect class='bar-fill-high' x='531' y='92' width='540' height='36' rx='10' ry='10' filter='url(#shadow)' />
+<text class='pct on-fill' x='1063' y='110.0' dominant-baseline='middle' text-anchor='end'>100% (2/2)</text>
+<text class='label' x='24' y='158.0' dominant-baseline='middle'>1.2 reductions (beyond sum/mean/count_nonzero)</text>
+<rect class='bar-bg' x='531' y='140' width='540' height='36' rx='10' ry='10' />
+<rect class='bar-fill-mid' x='531' y='140' width='270' height='36' rx='10' ry='10' filter='url(#shadow)' />
+<text class='pct' x='1063' y='158.0' dominant-baseline='middle' text-anchor='end'>50% (5/10)</text>
+<text class='label' x='24' y='206.0' dominant-baseline='middle'>1.3 elementwise (arithmetic/compare/logical/unary/math)</text>
+<rect class='bar-bg' x='531' y='188' width='540' height='36' rx='10' ry='10' />
+<text class='pct' x='1063' y='206.0' dominant-baseline='middle' text-anchor='end'>0% (0/9)</text>
+<text class='label' x='24' y='254.0' dominant-baseline='middle'>1.4 manipulation (beyond COOND permute_dims/reshape)</text>
+<rect class='bar-bg' x='531' y='236' width='540' height='36' rx='10' ry='10' />
+<text class='pct' x='1063' y='254.0' dominant-baseline='middle' text-anchor='end'>0% (0/12)</text>
+<text class='label' x='24' y='302.0' dominant-baseline='middle'>1.5 searching / indexing / sets / sorting (minimum viable)</text>
+<rect class='bar-bg' x='531' y='284' width='540' height='36' rx='10' ry='10' />
+<text class='pct' x='1063' y='302.0' dominant-baseline='middle' text-anchor='end'>0% (0/13)</text>
+<text class='label' x='24' y='350.0' dominant-baseline='middle'>1.6 dtypes / devices</text>
+<rect class='bar-bg' x='531' y='332' width='540' height='36' rx='10' ry='10' />
+<text class='pct' x='1063' y='350.0' dominant-baseline='middle' text-anchor='end'>0% (0/3)</text>
+<text class='sub' x='24' y='398.0' dominant-baseline='middle'>Overall</text>
+<rect class='bar-bg' x='531' y='380' width='540' height='36' rx='10' ry='10' />
+<rect class='bar-fill-low' x='531' y='380' width='77' height='36' rx='10' ry='10' filter='url(#shadow)' />
+<text class='pct' x='1063' y='398.0' dominant-baseline='middle' text-anchor='end'>14% (7/49)</text>
+</svg>

@@ -37,6 +37,8 @@
 * Compatible with NumPy array format
 * Compatible with [Python array API standard](https://data-apis.org/array-api/latest/index.html)
 
+![Roadmap](docs/roadmap.svg)
+
 ## Quick start (development install)
 
 Requirements:
@@ -156,32 +158,39 @@ CSCrg = A.axes_unfold_to_csc([1])    # group axes as rows (CSC)
 
 ## Why Lacuna
 
-Lacuna bridges matrix-first sparse libraries and array-first ND sparse arrays: high-performance Rust kernels with a simple, NumPy-friendly Python API and first-class N-dimensional COO tensors.
+Lacuna connects matrix-first sparse libraries with modern N-D sparse arrays: high-performance Rust kernels behind a simple, NumPy-friendly Python API and first-class N-D COO tensors.
 
-Compared with existing options:
+Compared to existing options:
 
-- **SciPy.sparse**
-  - Two-dimensional, linear-algebra–first. Mature and battle-tested.
-  - Not natively N-dimensional; integrating array/tensor semantics (broadcasting, axis-wise ops) often requires reshaping or densifying.
-- **PyData/Sparse (`sparse`)**
-  - Modern, N-dimensional `COO` with NumPy-like semantics and broadcasting.
-  - Performance is often below SciPy for core kernels; API coverage is a subset of NumPy; ecosystem is smaller.
+* **SciPy.sparse**
 
-What Lacuna offers today:
+  * 2D, linear-algebra–first, mature and battle-tested.
+  * Not natively N-D; tensor/array semantics (broadcasting, axis ops) often need reshaping or densifying.
+* **PyData/Sparse (`sparse`)**
 
-- **N-D and 2-D in one library**
-  - COOND tensors plus CSR/CSC/COO matrices, with unfolding from ND to 2D (mode and grouped axes).
-- **High-performance native kernels**
-  - Pure Rust with Rayon parallelism and wide SIMD (f64x4), built with `-C target-cpu=native`.
-  - SpMV/SpMM, reductions, and transforms use nnz-aware work partitioning, per-thread accumulators, and stripe-local buffers to improve cache locality and reduce contention.
-- **Practical 2D operations**
-  - CSR/CSC/COO: SpMV, SpMM, add/sub/Hadamard, transpose, prune(eps), eliminate_zeros, row/col sums, total sum.
-- **ND operations that feel like NumPy**
-  - COOND: sum/mean, reduce over axes, permute axes, reshape, broadcasting Hadamard, unfold to CSR/CSC.
-- **Simple Python ergonomics**
-  - NumPy-friendly classes, zero-copy buffer reads when safe, explicit float64 values and int64 indices, thread control via `set_num_threads`.
-- **Array API compliance**
-  - Fully compliant `lacuna.array_api` namespace with xp-style dispatch; interoperates with Array API–aware libraries.
+  * N-D `COO` with NumPy-like semantics and broadcasting.
+  * Often slower than SciPy on core kernels; smaller API surface and ecosystem.
+
+Lacuna offers:
+
+* **Unified N-D and 2D**
+
+  * COOND tensors plus CSR/CSC/COO matrices, with unfolding from N-D to 2D (mode or grouped axes).
+* **High-performance native kernels**
+
+  * Rust + Rayon + SIMD, with nnz-aware work partitioning and cache-friendly accumulators for SpMV/SpMM, reductions, and transforms.
+* **Practical 2D ops**
+
+  * CSR/CSC/COO: SpMV, SpMM, add/sub/Hadamard, transpose, prune, eliminate_zeros, row/col sums, total sum.
+* **NumPy-like N-D ops**
+
+  * COOND: sum/mean, axis reductions, permute, reshape, broadcasting Hadamard, unfold to CSR/CSC.
+* **Simple Python ergonomics**
+
+  * NumPy-style classes, zero-copy where safe, float64 values, int64 indices, `set_num_threads` for control.
+* **Array API compliance**
+
+  * Fully compliant `lacuna.array_api` namespace with xp-style dispatch for Array API–aware libraries.
 
 ## Benchmarks
 
