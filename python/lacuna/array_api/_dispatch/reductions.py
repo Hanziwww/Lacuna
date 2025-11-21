@@ -2,6 +2,10 @@ import numpy as np
 
 from ...sparse import COO, COOND, CSC, CSR
 from .._namespace import _numpy_xp
+try:
+    from ... import _core
+except Exception:  # pragma: no cover
+    _core = None
 
 
 def _normalize_axes_2d(axis):
@@ -145,3 +149,93 @@ def mean(x, axis=None, keepdims=False):
 
     xp = _numpy_xp()
     return xp.mean(x, axis=axis, keepdims=keepdims)
+
+
+def min(x, axis=None, keepdims=False):
+    if isinstance(x, (CSR, CSC, COO)):
+        if _core is None:
+            raise RuntimeError("native core is not available")
+        norm = _normalize_axes_2d(axis)
+        nrows, ncols = x.shape
+        if norm is None or norm == (0, 1):
+            if isinstance(x, CSR):
+                m = _core.min_from_parts(x.shape[0], x.shape[1], x.indptr, x.indices, x.data, False)
+            elif isinstance(x, CSC):
+                m = _core.min_csc_from_parts(x.shape[0], x.shape[1], x.indptr, x.indices, x.data, False)
+            else:
+                m = _core.min_coo_from_parts(x.shape[0], x.shape[1], x.row, x.col, x.data, False)
+            return np.array(m).reshape((1, 1)) if keepdims else float(m)
+        if norm == ():
+            raise NotImplementedError(
+                "min with axis=() (no reduction) is not implemented for sparse inputs"
+            )
+        if norm == (0,):
+            if isinstance(x, CSR):
+                v = _core.col_mins_from_parts(x.shape[0], x.shape[1], x.indptr, x.indices, x.data, False)
+            elif isinstance(x, CSC):
+                v = _core.col_mins_csc_from_parts(x.shape[0], x.shape[1], x.indptr, x.indices, x.data, False)
+            else:
+                v = _core.col_mins_coo_from_parts(x.shape[0], x.shape[1], x.row, x.col, x.data, False)
+            v = np.asarray(v)
+            return v.reshape((1, ncols)) if keepdims else v
+        if norm == (1,):
+            if isinstance(x, CSR):
+                v = _core.row_mins_from_parts(x.shape[0], x.shape[1], x.indptr, x.indices, x.data, False)
+            elif isinstance(x, CSC):
+                v = _core.row_mins_csc_from_parts(x.shape[0], x.shape[1], x.indptr, x.indices, x.data, False)
+            else:
+                v = _core.row_mins_coo_from_parts(x.shape[0], x.shape[1], x.row, x.col, x.data, False)
+            v = np.asarray(v)
+            return v.reshape((nrows, 1)) if keepdims else v
+        raise ValueError("invalid axis for 2D input")
+
+    if isinstance(x, COOND):
+        raise NotImplementedError("min for COO/COOND is not yet implemented")
+
+    xp = _numpy_xp()
+    return xp.min(x, axis=axis, keepdims=keepdims)
+
+
+def max(x, axis=None, keepdims=False):
+    if isinstance(x, (CSR, CSC, COO)):
+        if _core is None:
+            raise RuntimeError("native core is not available")
+        norm = _normalize_axes_2d(axis)
+        nrows, ncols = x.shape
+        if norm is None or norm == (0, 1):
+            if isinstance(x, CSR):
+                m = _core.max_from_parts(x.shape[0], x.shape[1], x.indptr, x.indices, x.data, False)
+            elif isinstance(x, CSC):
+                m = _core.max_csc_from_parts(x.shape[0], x.shape[1], x.indptr, x.indices, x.data, False)
+            else:
+                m = _core.max_coo_from_parts(x.shape[0], x.shape[1], x.row, x.col, x.data, False)
+            return np.array(m).reshape((1, 1)) if keepdims else float(m)
+        if norm == ():
+            raise NotImplementedError(
+                "max with axis=() (no reduction) is not implemented for sparse inputs"
+            )
+        if norm == (0,):
+            if isinstance(x, CSR):
+                v = _core.col_maxs_from_parts(x.shape[0], x.shape[1], x.indptr, x.indices, x.data, False)
+            elif isinstance(x, CSC):
+                v = _core.col_maxs_csc_from_parts(x.shape[0], x.shape[1], x.indptr, x.indices, x.data, False)
+            else:
+                v = _core.col_maxs_coo_from_parts(x.shape[0], x.shape[1], x.row, x.col, x.data, False)
+            v = np.asarray(v)
+            return v.reshape((1, ncols)) if keepdims else v
+        if norm == (1,):
+            if isinstance(x, CSR):
+                v = _core.row_maxs_from_parts(x.shape[0], x.shape[1], x.indptr, x.indices, x.data, False)
+            elif isinstance(x, CSC):
+                v = _core.row_maxs_csc_from_parts(x.shape[0], x.shape[1], x.indptr, x.indices, x.data, False)
+            else:
+                v = _core.row_maxs_coo_from_parts(x.shape[0], x.shape[1], x.row, x.col, x.data, False)
+            v = np.asarray(v)
+            return v.reshape((nrows, 1)) if keepdims else v
+        raise ValueError("invalid axis for 2D input")
+
+    if isinstance(x, COOND):
+        raise NotImplementedError("max for COO/COOND is not yet implemented")
+
+    xp = _numpy_xp()
+    return xp.max(x, axis=axis, keepdims=keepdims)

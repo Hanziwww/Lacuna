@@ -4,10 +4,13 @@
 use numpy::{IntoPyArray, PyArray1, PyReadonlyArray1};
 use pyo3::prelude::*;
 
-use lacuna_core::{CooNd, Csr};
+use lacuna_core::{Coo, CooNd, Csc, Csr};
 use lacuna_kernels::{
-    col_sums_f64, mean_coond_f64, reduce_mean_axes_coond_f64_i64, reduce_sum_axes_coond_f64_i64,
-    row_sums_f64, sum_coond_f64, sum_f64,
+    col_maxs_csc_f64, col_maxs_coo_f64, col_maxs_f64, col_mins_csc_f64, col_mins_coo_f64,
+    col_mins_f64, col_sums_f64, max_csc_f64, max_coo_f64, max_f64, mean_coond_f64, min_csc_f64,
+    min_coo_f64, min_f64, reduce_mean_axes_coond_f64_i64, reduce_sum_axes_coond_f64_i64,
+    row_maxs_csc_f64, row_maxs_coo_f64, row_maxs_f64, row_mins_csc_f64, row_mins_coo_f64,
+    row_mins_f64, row_sums_f64, sum_coond_f64, sum_f64,
 };
 
 use super::helpers::{
@@ -36,6 +39,422 @@ pub(crate) fn sum_from_parts<'py>(
     .map_err(PyErr::new::<pyo3::exceptions::PyValueError, _>)?;
     let s = py.detach(|| sum_f64(&a));
     Ok(s)
+}
+
+/// Min/Max for COO (global and per-axis)
+#[pyfunction]
+pub(crate) fn min_coo_from_parts<'py>(
+    py: Python<'py>,
+    nrows: usize,
+    ncols: usize,
+    row: PyReadonlyArray1<'py, i64>,
+    col: PyReadonlyArray1<'py, i64>,
+    data: PyReadonlyArray1<'py, f64>,
+    check: bool,
+) -> PyResult<f64> {
+    let a = Coo::from_parts(
+        nrows,
+        ncols,
+        row.as_slice()?.to_vec(),
+        col.as_slice()?.to_vec(),
+        data.as_slice()?.to_vec(),
+        check,
+    )
+    .map_err(PyErr::new::<pyo3::exceptions::PyValueError, _>)?;
+    Ok(py.detach(|| min_coo_f64(&a)))
+}
+
+#[pyfunction]
+pub(crate) fn max_coo_from_parts<'py>(
+    py: Python<'py>,
+    nrows: usize,
+    ncols: usize,
+    row: PyReadonlyArray1<'py, i64>,
+    col: PyReadonlyArray1<'py, i64>,
+    data: PyReadonlyArray1<'py, f64>,
+    check: bool,
+) -> PyResult<f64> {
+    let a = Coo::from_parts(
+        nrows,
+        ncols,
+        row.as_slice()?.to_vec(),
+        col.as_slice()?.to_vec(),
+        data.as_slice()?.to_vec(),
+        check,
+    )
+    .map_err(PyErr::new::<pyo3::exceptions::PyValueError, _>)?;
+    Ok(py.detach(|| max_coo_f64(&a)))
+}
+
+#[pyfunction]
+pub(crate) fn row_mins_coo_from_parts<'py>(
+    py: Python<'py>,
+    nrows: usize,
+    ncols: usize,
+    row: PyReadonlyArray1<'py, i64>,
+    col: PyReadonlyArray1<'py, i64>,
+    data: PyReadonlyArray1<'py, f64>,
+    check: bool,
+) -> PyResult<Bound<'py, PyArray1<f64>>> {
+    let a = Coo::from_parts(
+        nrows,
+        ncols,
+        row.as_slice()?.to_vec(),
+        col.as_slice()?.to_vec(),
+        data.as_slice()?.to_vec(),
+        check,
+    )
+    .map_err(PyErr::new::<pyo3::exceptions::PyValueError, _>)?;
+    let v = py.detach(|| row_mins_coo_f64(&a));
+    Ok(PyArray1::from_vec(py, v))
+}
+
+#[pyfunction]
+pub(crate) fn row_maxs_coo_from_parts<'py>(
+    py: Python<'py>,
+    nrows: usize,
+    ncols: usize,
+    row: PyReadonlyArray1<'py, i64>,
+    col: PyReadonlyArray1<'py, i64>,
+    data: PyReadonlyArray1<'py, f64>,
+    check: bool,
+) -> PyResult<Bound<'py, PyArray1<f64>>> {
+    let a = Coo::from_parts(
+        nrows,
+        ncols,
+        row.as_slice()?.to_vec(),
+        col.as_slice()?.to_vec(),
+        data.as_slice()?.to_vec(),
+        check,
+    )
+    .map_err(PyErr::new::<pyo3::exceptions::PyValueError, _>)?;
+    let v = py.detach(|| row_maxs_coo_f64(&a));
+    Ok(PyArray1::from_vec(py, v))
+}
+
+#[pyfunction]
+pub(crate) fn col_mins_coo_from_parts<'py>(
+    py: Python<'py>,
+    nrows: usize,
+    ncols: usize,
+    row: PyReadonlyArray1<'py, i64>,
+    col: PyReadonlyArray1<'py, i64>,
+    data: PyReadonlyArray1<'py, f64>,
+    check: bool,
+) -> PyResult<Bound<'py, PyArray1<f64>>> {
+    let a = Coo::from_parts(
+        nrows,
+        ncols,
+        row.as_slice()?.to_vec(),
+        col.as_slice()?.to_vec(),
+        data.as_slice()?.to_vec(),
+        check,
+    )
+    .map_err(PyErr::new::<pyo3::exceptions::PyValueError, _>)?;
+    let v = py.detach(|| col_mins_coo_f64(&a));
+    Ok(PyArray1::from_vec(py, v))
+}
+
+#[pyfunction]
+pub(crate) fn col_maxs_coo_from_parts<'py>(
+    py: Python<'py>,
+    nrows: usize,
+    ncols: usize,
+    row: PyReadonlyArray1<'py, i64>,
+    col: PyReadonlyArray1<'py, i64>,
+    data: PyReadonlyArray1<'py, f64>,
+    check: bool,
+) -> PyResult<Bound<'py, PyArray1<f64>>> {
+    let a = Coo::from_parts(
+        nrows,
+        ncols,
+        row.as_slice()?.to_vec(),
+        col.as_slice()?.to_vec(),
+        data.as_slice()?.to_vec(),
+        check,
+    )
+    .map_err(PyErr::new::<pyo3::exceptions::PyValueError, _>)?;
+    let v = py.detach(|| col_maxs_coo_f64(&a));
+    Ok(PyArray1::from_vec(py, v))
+}
+
+/// Min of all elements in CSR (treating implied zeros)
+#[pyfunction]
+pub(crate) fn min_from_parts<'py>(
+    py: Python<'py>,
+    nrows: usize,
+    ncols: usize,
+    indptr: PyReadonlyArray1<'py, i64>,
+    indices: PyReadonlyArray1<'py, i64>,
+    data: PyReadonlyArray1<'py, f64>,
+    check: bool,
+) -> PyResult<f64> {
+    let a = Csr::from_parts(
+        nrows,
+        ncols,
+        indptr.as_slice()?.to_vec(),
+        indices.as_slice()?.to_vec(),
+        data.as_slice()?.to_vec(),
+        check,
+    )
+    .map_err(PyErr::new::<pyo3::exceptions::PyValueError, _>)?;
+    Ok(py.detach(|| min_f64(&a)))
+}
+
+/// Max of all elements in CSR (treating implied zeros)
+#[pyfunction]
+pub(crate) fn max_from_parts<'py>(
+    py: Python<'py>,
+    nrows: usize,
+    ncols: usize,
+    indptr: PyReadonlyArray1<'py, i64>,
+    indices: PyReadonlyArray1<'py, i64>,
+    data: PyReadonlyArray1<'py, f64>,
+    check: bool,
+) -> PyResult<f64> {
+    let a = Csr::from_parts(
+        nrows,
+        ncols,
+        indptr.as_slice()?.to_vec(),
+        indices.as_slice()?.to_vec(),
+        data.as_slice()?.to_vec(),
+        check,
+    )
+    .map_err(PyErr::new::<pyo3::exceptions::PyValueError, _>)?;
+    Ok(py.detach(|| max_f64(&a)))
+}
+
+/// Row-wise mins in CSR (implied zeros lower-bound rows)
+#[pyfunction]
+pub(crate) fn row_mins_from_parts<'py>(
+    py: Python<'py>,
+    nrows: usize,
+    ncols: usize,
+    indptr: PyReadonlyArray1<'py, i64>,
+    indices: PyReadonlyArray1<'py, i64>,
+    data: PyReadonlyArray1<'py, f64>,
+    check: bool,
+) -> PyResult<Bound<'py, PyArray1<f64>>> {
+    let a = Csr::from_parts(
+        nrows,
+        ncols,
+        indptr.as_slice()?.to_vec(),
+        indices.as_slice()?.to_vec(),
+        data.as_slice()?.to_vec(),
+        check,
+    )
+    .map_err(PyErr::new::<pyo3::exceptions::PyValueError, _>)?;
+    let v = py.detach(|| row_mins_f64(&a));
+    Ok(PyArray1::from_vec(py, v))
+}
+
+/// Row-wise maxs in CSR (implied zeros upper-bound rows)
+#[pyfunction]
+pub(crate) fn row_maxs_from_parts<'py>(
+    py: Python<'py>,
+    nrows: usize,
+    ncols: usize,
+    indptr: PyReadonlyArray1<'py, i64>,
+    indices: PyReadonlyArray1<'py, i64>,
+    data: PyReadonlyArray1<'py, f64>,
+    check: bool,
+) -> PyResult<Bound<'py, PyArray1<f64>>> {
+    let a = Csr::from_parts(
+        nrows,
+        ncols,
+        indptr.as_slice()?.to_vec(),
+        indices.as_slice()?.to_vec(),
+        data.as_slice()?.to_vec(),
+        check,
+    )
+    .map_err(PyErr::new::<pyo3::exceptions::PyValueError, _>)?;
+    let v = py.detach(|| row_maxs_f64(&a));
+    Ok(PyArray1::from_vec(py, v))
+}
+
+/// Column-wise mins in CSR
+#[pyfunction]
+pub(crate) fn col_mins_from_parts<'py>(
+    py: Python<'py>,
+    nrows: usize,
+    ncols: usize,
+    indptr: PyReadonlyArray1<'py, i64>,
+    indices: PyReadonlyArray1<'py, i64>,
+    data: PyReadonlyArray1<'py, f64>,
+    check: bool,
+) -> PyResult<Bound<'py, PyArray1<f64>>> {
+    let a = Csr::from_parts(
+        nrows,
+        ncols,
+        indptr.as_slice()?.to_vec(),
+        indices.as_slice()?.to_vec(),
+        data.as_slice()?.to_vec(),
+        check,
+    )
+    .map_err(PyErr::new::<pyo3::exceptions::PyValueError, _>)?;
+    let v = py.detach(|| col_mins_f64(&a));
+    Ok(PyArray1::from_vec(py, v))
+}
+
+/// Column-wise maxs in CSR
+#[pyfunction]
+pub(crate) fn col_maxs_from_parts<'py>(
+    py: Python<'py>,
+    nrows: usize,
+    ncols: usize,
+    indptr: PyReadonlyArray1<'py, i64>,
+    indices: PyReadonlyArray1<'py, i64>,
+    data: PyReadonlyArray1<'py, f64>,
+    check: bool,
+) -> PyResult<Bound<'py, PyArray1<f64>>> {
+    let a = Csr::from_parts(
+        nrows,
+        ncols,
+        indptr.as_slice()?.to_vec(),
+        indices.as_slice()?.to_vec(),
+        data.as_slice()?.to_vec(),
+        check,
+    )
+    .map_err(PyErr::new::<pyo3::exceptions::PyValueError, _>)?;
+    let v = py.detach(|| col_maxs_f64(&a));
+    Ok(PyArray1::from_vec(py, v))
+}
+
+/// Min/Max for CSC (global and per-axis)
+#[pyfunction]
+pub(crate) fn min_csc_from_parts<'py>(
+    py: Python<'py>,
+    nrows: usize,
+    ncols: usize,
+    indptr: PyReadonlyArray1<'py, i64>,
+    indices: PyReadonlyArray1<'py, i64>,
+    data: PyReadonlyArray1<'py, f64>,
+    check: bool,
+) -> PyResult<f64> {
+    let a = Csc::from_parts(
+        nrows,
+        ncols,
+        indptr.as_slice()?.to_vec(),
+        indices.as_slice()?.to_vec(),
+        data.as_slice()?.to_vec(),
+        check,
+    )
+    .map_err(PyErr::new::<pyo3::exceptions::PyValueError, _>)?;
+    Ok(py.detach(|| min_csc_f64(&a)))
+}
+
+#[pyfunction]
+pub(crate) fn max_csc_from_parts<'py>(
+    py: Python<'py>,
+    nrows: usize,
+    ncols: usize,
+    indptr: PyReadonlyArray1<'py, i64>,
+    indices: PyReadonlyArray1<'py, i64>,
+    data: PyReadonlyArray1<'py, f64>,
+    check: bool,
+) -> PyResult<f64> {
+    let a = Csc::from_parts(
+        nrows,
+        ncols,
+        indptr.as_slice()?.to_vec(),
+        indices.as_slice()?.to_vec(),
+        data.as_slice()?.to_vec(),
+        check,
+    )
+    .map_err(PyErr::new::<pyo3::exceptions::PyValueError, _>)?;
+    Ok(py.detach(|| max_csc_f64(&a)))
+}
+
+#[pyfunction]
+pub(crate) fn row_mins_csc_from_parts<'py>(
+    py: Python<'py>,
+    nrows: usize,
+    ncols: usize,
+    indptr: PyReadonlyArray1<'py, i64>,
+    indices: PyReadonlyArray1<'py, i64>,
+    data: PyReadonlyArray1<'py, f64>,
+    check: bool,
+) -> PyResult<Bound<'py, PyArray1<f64>>> {
+    let a = Csc::from_parts(
+        nrows,
+        ncols,
+        indptr.as_slice()?.to_vec(),
+        indices.as_slice()?.to_vec(),
+        data.as_slice()?.to_vec(),
+        check,
+    )
+    .map_err(PyErr::new::<pyo3::exceptions::PyValueError, _>)?;
+    let v = py.detach(|| row_mins_csc_f64(&a));
+    Ok(PyArray1::from_vec(py, v))
+}
+
+#[pyfunction]
+pub(crate) fn row_maxs_csc_from_parts<'py>(
+    py: Python<'py>,
+    nrows: usize,
+    ncols: usize,
+    indptr: PyReadonlyArray1<'py, i64>,
+    indices: PyReadonlyArray1<'py, i64>,
+    data: PyReadonlyArray1<'py, f64>,
+    check: bool,
+) -> PyResult<Bound<'py, PyArray1<f64>>> {
+    let a = Csc::from_parts(
+        nrows,
+        ncols,
+        indptr.as_slice()?.to_vec(),
+        indices.as_slice()?.to_vec(),
+        data.as_slice()?.to_vec(),
+        check,
+    )
+    .map_err(PyErr::new::<pyo3::exceptions::PyValueError, _>)?;
+    let v = py.detach(|| row_maxs_csc_f64(&a));
+    Ok(PyArray1::from_vec(py, v))
+}
+
+#[pyfunction]
+pub(crate) fn col_mins_csc_from_parts<'py>(
+    py: Python<'py>,
+    nrows: usize,
+    ncols: usize,
+    indptr: PyReadonlyArray1<'py, i64>,
+    indices: PyReadonlyArray1<'py, i64>,
+    data: PyReadonlyArray1<'py, f64>,
+    check: bool,
+) -> PyResult<Bound<'py, PyArray1<f64>>> {
+    let a = Csc::from_parts(
+        nrows,
+        ncols,
+        indptr.as_slice()?.to_vec(),
+        indices.as_slice()?.to_vec(),
+        data.as_slice()?.to_vec(),
+        check,
+    )
+    .map_err(PyErr::new::<pyo3::exceptions::PyValueError, _>)?;
+    let v = py.detach(|| col_mins_csc_f64(&a));
+    Ok(PyArray1::from_vec(py, v))
+}
+
+#[pyfunction]
+pub(crate) fn col_maxs_csc_from_parts<'py>(
+    py: Python<'py>,
+    nrows: usize,
+    ncols: usize,
+    indptr: PyReadonlyArray1<'py, i64>,
+    indices: PyReadonlyArray1<'py, i64>,
+    data: PyReadonlyArray1<'py, f64>,
+    check: bool,
+) -> PyResult<Bound<'py, PyArray1<f64>>> {
+    let a = Csc::from_parts(
+        nrows,
+        ncols,
+        indptr.as_slice()?.to_vec(),
+        indices.as_slice()?.to_vec(),
+        data.as_slice()?.to_vec(),
+        check,
+    )
+    .map_err(PyErr::new::<pyo3::exceptions::PyValueError, _>)?;
+    let v = py.detach(|| col_maxs_csc_f64(&a));
+    Ok(PyArray1::from_vec(py, v))
 }
 
 /// Sum rows of CSR matrix

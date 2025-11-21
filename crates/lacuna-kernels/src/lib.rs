@@ -59,6 +59,13 @@ pub use statistical::sum::{
     sum_f64,
 };
 
+pub use statistical::minmax::{
+    col_maxs_csc_f64, col_maxs_coo_f64, col_maxs_f64, col_mins_csc_f64, col_mins_coo_f64,
+    col_mins_f64, max_csc_f64, max_coo_f64, max_f64, min_csc_f64, min_coo_f64, min_f64,
+    row_maxs_csc_f64, row_maxs_coo_f64, row_maxs_f64, row_mins_csc_f64, row_mins_coo_f64,
+    row_mins_f64,
+};
+
 pub use manipulation::permute_dims::permute_axes_coond_f64_i64;
 pub use manipulation::reshape::reshape_coond_f64_i64;
 

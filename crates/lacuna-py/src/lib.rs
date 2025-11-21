@@ -121,6 +121,81 @@ fn _core(m: &Bound<PyModule>) -> PyResult<()> {
         crate::array_api::reduce::col_sums_from_parts,
         m
     )?)?;
+    // Min/Max (CSR)
+    m.add_function(wrap_pyfunction!(
+        crate::array_api::reduce::min_from_parts,
+        m
+    )?)?;
+    m.add_function(wrap_pyfunction!(
+        crate::array_api::reduce::max_from_parts,
+        m
+    )?)?;
+    m.add_function(wrap_pyfunction!(
+        crate::array_api::reduce::row_mins_from_parts,
+        m
+    )?)?;
+    m.add_function(wrap_pyfunction!(
+        crate::array_api::reduce::row_maxs_from_parts,
+        m
+    )?)?;
+    m.add_function(wrap_pyfunction!(
+        crate::array_api::reduce::col_mins_from_parts,
+        m
+    )?)?;
+    m.add_function(wrap_pyfunction!(
+        crate::array_api::reduce::col_maxs_from_parts,
+        m
+    )?)?;
+    // Min/Max (CSC)
+    m.add_function(wrap_pyfunction!(
+        crate::array_api::reduce::min_csc_from_parts,
+        m
+    )?)?;
+    m.add_function(wrap_pyfunction!(
+        crate::array_api::reduce::max_csc_from_parts,
+        m
+    )?)?;
+    m.add_function(wrap_pyfunction!(
+        crate::array_api::reduce::row_mins_csc_from_parts,
+        m
+    )?)?;
+    m.add_function(wrap_pyfunction!(
+        crate::array_api::reduce::row_maxs_csc_from_parts,
+        m
+    )?)?;
+    m.add_function(wrap_pyfunction!(
+        crate::array_api::reduce::col_mins_csc_from_parts,
+        m
+    )?)?;
+    m.add_function(wrap_pyfunction!(
+        crate::array_api::reduce::col_maxs_csc_from_parts,
+        m
+    )?)?;
+    // Min/Max (COO)
+    m.add_function(wrap_pyfunction!(
+        crate::array_api::reduce::min_coo_from_parts,
+        m
+    )?)?;
+    m.add_function(wrap_pyfunction!(
+        crate::array_api::reduce::max_coo_from_parts,
+        m
+    )?)?;
+    m.add_function(wrap_pyfunction!(
+        crate::array_api::reduce::row_mins_coo_from_parts,
+        m
+    )?)?;
+    m.add_function(wrap_pyfunction!(
+        crate::array_api::reduce::row_maxs_coo_from_parts,
+        m
+    )?)?;
+    m.add_function(wrap_pyfunction!(
+        crate::array_api::reduce::col_mins_coo_from_parts,
+        m
+    )?)?;
+    m.add_function(wrap_pyfunction!(
+        crate::array_api::reduce::col_maxs_coo_from_parts,
+        m
+    )?)?;
     m.add_function(wrap_pyfunction!(
         crate::array_api::reduce::coond_sum_from_parts,
         m

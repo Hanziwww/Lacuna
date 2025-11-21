@@ -11,11 +11,11 @@ def prod(x, axis=None, keepdims=False):
 
 
 def min(x, axis=None, keepdims=False):
-    return getattr(_ns, "min")(x, axis=axis, keepdims=keepdims)
+    return _dp.min(x, axis=axis, keepdims=keepdims)
 
 
 def max(x, axis=None, keepdims=False):
-    return getattr(_ns, "max")(x, axis=axis, keepdims=keepdims)
+    return _dp.max(x, axis=axis, keepdims=keepdims)
 
 
 def mean(x, axis=None, keepdims=False):

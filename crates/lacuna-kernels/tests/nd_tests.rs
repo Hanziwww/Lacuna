@@ -97,7 +97,7 @@ fn test_spmv_spmm_coond_shapes_and_sums() {
         0.0, 0.0, 1.0, 0.0, // row2
     ];
     let z = spmm_coond_f64_i64(&a, 1, &b, 4);
-    assert_eq!(z.shape, vec![2usize, 4usize, 2usize]);
+    assert_eq!(z.shape, vec![2usize, 2usize, 4usize]);
     assert!((sum_coond_f64(&z) - sum_coond_f64(&a)).abs() < 1e-12);
 }
 
