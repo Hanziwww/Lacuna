@@ -1,4 +1,8 @@
 //! Sum reductions: sum, `row_sums`, `col_sums`, `reduce_sum_axes`
+//
+// This module implements efficient sum reductions for sparse matrices in CSR, CSC, COO, and COOND formats.
+// Functions include global, row-wise, and column-wise sums, as well as sum reductions along arbitrary axes for N-dimensional arrays.
+// SIMD and parallelization are used for performance. Edge cases such as empty matrices and missing entries are handled to match NumPy-like semantics.
 
 #![allow(
     clippy::many_single_char_names,
@@ -15,6 +19,7 @@ use std::cell::RefCell;
 use thread_local::ThreadLocal;
 use wide::f64x4;
 
+/// Convert usize to i64, asserting that the value fits.
 #[inline]
 fn usize_to_i64(x: usize) -> i64 {
     debug_assert!(i64::try_from(x).is_ok());
@@ -24,6 +29,8 @@ fn usize_to_i64(x: usize) -> i64 {
     }
 }
 
+/// Compute the sum of all elements in a CSC matrix.
+/// Uses SIMD and parallelization for performance.
 #[must_use]
 pub fn sum_csc_f64(a: &Csc<f64, i64>) -> f64 {
     a.data
@@ -51,6 +58,8 @@ pub fn sum_csc_f64(a: &Csc<f64, i64>) -> f64 {
         .sum()
 }
 
+/// Reduce an N-dimensional COO array by summing along the specified axes.
+/// Returns a new COO array with the reduced shape. Handles overflow and empty cases.
 #[must_use]
 pub fn reduce_sum_axes_coond_f64_i64(a: &CooNd<f64, i64>, axes: &[usize]) -> CooNd<f64, i64> {
     let ndim = a.shape.len();
@@ -119,6 +128,8 @@ pub fn reduce_sum_axes_coond_f64_i64(a: &CooNd<f64, i64>, axes: &[usize]) -> Coo
     CooNd::from_parts_unchecked(remain_shape, out_indices, out_data)
 }
 
+/// Compute the sum of all elements in an N-dimensional COO array.
+/// Uses SIMD and parallelization for performance.
 #[must_use]
 pub fn sum_coond_f64(a: &CooNd<f64, i64>) -> f64 {
     a.data
@@ -146,6 +157,8 @@ pub fn sum_coond_f64(a: &CooNd<f64, i64>) -> f64 {
         .sum()
 }
 
+/// Compute the sum of all elements in a COO matrix.
+/// Uses SIMD and parallelization for performance.
 #[must_use]
 pub fn sum_coo_f64(a: &Coo<f64, i64>) -> f64 {
     a.data
@@ -173,7 +186,8 @@ pub fn sum_coo_f64(a: &Coo<f64, i64>) -> f64 {
         .sum()
 }
 
-/// sum of all data
+/// Compute the sum of all elements in a CSR matrix.
+/// Uses SIMD and parallelization for performance.
 #[must_use]
 pub fn sum_f64(a: &Csr<f64, i64>) -> f64 {
     // Parallel reduce with SIMD inside chunks
@@ -202,7 +216,8 @@ pub fn sum_f64(a: &Csr<f64, i64>) -> f64 {
         .sum()
 }
 
-/// row sums (CSR)
+/// Compute the sum of each row in a CSR matrix.
+/// Returns a vector of length nrows. Uses SIMD and parallelization for performance.
 #[must_use]
 pub fn row_sums_f64(a: &Csr<f64, i64>) -> Vec<f64> {
     let nrows = a.nrows;
@@ -259,7 +274,8 @@ pub fn row_sums_f64(a: &Csr<f64, i64>) -> Vec<f64> {
     out
 }
 
-/// column sums (CSR)
+/// Compute the sum of each column in a CSR matrix.
+/// Returns a vector of length ncols. Uses SIMD and parallelization for performance.
 #[must_use]
 pub fn col_sums_f64(a: &Csr<f64, i64>) -> Vec<f64> {
     let ncols = a.ncols;
@@ -421,6 +437,8 @@ pub fn col_sums_f64(a: &Csr<f64, i64>) -> Vec<f64> {
     out
 }
 
+/// Compute the sum of each row in a CSC matrix.
+/// Returns a vector of length nrows. Uses SIMD and parallelization for performance.
 #[must_use]
 pub fn row_sums_csc_f64(a: &Csc<f64, i64>) -> Vec<f64> {
     let nrows = a.nrows;
@@ -509,6 +527,8 @@ pub fn row_sums_csc_f64(a: &Csc<f64, i64>) -> Vec<f64> {
     out
 }
 
+/// Compute the sum of each column in a CSC matrix.
+/// Returns a vector of length ncols. Uses SIMD and parallelization for performance.
 #[must_use]
 pub fn col_sums_csc_f64(a: &Csc<f64, i64>) -> Vec<f64> {
     let ncols = a.ncols;
@@ -542,6 +562,8 @@ pub fn col_sums_csc_f64(a: &Csc<f64, i64>) -> Vec<f64> {
     out
 }
 
+/// Compute the sum of each row in a COO matrix.
+/// Returns a vector of length nrows. Uses SIMD and parallelization for performance.
 #[must_use]
 pub fn row_sums_coo_f64(a: &Coo<f64, i64>) -> Vec<f64> {
     let nrows = a.nrows;
@@ -622,6 +644,8 @@ pub fn row_sums_coo_f64(a: &Coo<f64, i64>) -> Vec<f64> {
     }
 }
 
+/// Compute the sum of each column in a COO matrix.
+/// Returns a vector of length ncols. Uses SIMD and parallelization for performance.
 #[allow(clippy::too_many_lines)]
 #[must_use]
 pub fn col_sums_coo_f64(a: &Coo<f64, i64>) -> Vec<f64> {

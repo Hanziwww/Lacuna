@@ -1,5 +1,11 @@
 //! Discrete forward differences (n-th order) along a specified axis for sparse matrices.
 //! Returns sparse matrices of the same format (CSR/CSC) and COO via conversion.
+//
+// This module provides functions to compute the n-th order discrete forward difference
+// along a specified axis for sparse matrices in CSR, CSC, and COO formats. The difference
+// operation is performed efficiently and returns a sparse matrix of the same format.
+// The implementation leverages parallelism for performance and handles edge cases such as
+// empty matrices and zero-width/height outputs.
 
 #![allow(
     clippy::many_single_char_names,
@@ -14,10 +20,14 @@ use lacuna_core::{Coo, Csc, Csr};
 use rayon::prelude::*;
 
 #[inline]
+/// Combines pairs with the same column index by summing their values.
+/// This is used to merge duplicate entries after difference operations.
+/// The input vector is sorted by column index, and pairs with the same index are summed.
 fn combine_sorted_pairs(pairs: &mut Vec<(usize, f64)>) {
     if pairs.is_empty() {
         return;
     }
+    // Sort pairs by column index for efficient merging
     pairs.sort_unstable_by_key(|x| x.0);
     let mut w = 0usize;
     let mut last_c = pairs[0].0;
@@ -35,6 +45,7 @@ fn combine_sorted_pairs(pairs: &mut Vec<(usize, f64)>) {
             acc = v;
         }
     }
+    // Write the last accumulated value
     if acc != 0.0 {
         pairs[w] = (last_c, acc);
         w += 1;
@@ -43,8 +54,12 @@ fn combine_sorted_pairs(pairs: &mut Vec<(usize, f64)>) {
 }
 
 #[inline]
+/// Computes the n-th order discrete forward difference for a single row represented as pairs.
+/// Each pair is (column index, value). The difference is computed recursively n times.
+/// Returns a vector of pairs for the resulting row after difference.
 fn diff_row_pairs(mut pairs: Vec<(usize, f64)>, width: usize, n: usize) -> Vec<(usize, f64)> {
     if n == 0 || width == 0 {
+        // No difference to compute, just remove zero entries
         pairs.retain(|(_c, v)| *v != 0.0);
         return pairs;
     }
@@ -52,18 +67,21 @@ fn diff_row_pairs(mut pairs: Vec<(usize, f64)>, width: usize, n: usize) -> Vec<(
     let mut cur_w = width;
     for _ in 0..n {
         if cur_w == 0 || cur_w == 1 {
+            // No output possible for width 0 or 1
             return Vec::new();
         }
         let mut next: Vec<(usize, f64)> = Vec::with_capacity(cur.len() * 2);
         let limit = cur_w - 1; // output columns are [0..limit-1]
         for &(c, v) in &cur {
+            // For each entry, compute the difference with its neighbor
             if c < limit {
-                next.push((c, -v));
+                next.push((c, -v)); // Subtract current value from next
             }
             if c >= 1 {
-                next.push((c - 1, v));
+                next.push((c - 1, v)); // Add current value to previous
             }
         }
+        // Merge duplicate column indices
         combine_sorted_pairs(&mut next);
         cur = next;
         cur_w -= 1;
@@ -75,11 +93,15 @@ fn diff_row_pairs(mut pairs: Vec<(usize, f64)>, width: usize, n: usize) -> Vec<(
 }
 
 #[must_use]
+/// Computes the n-th order discrete forward difference along axis 1 (columns) for a CSR matrix.
+/// Returns a new CSR matrix with the result. The output matrix has ncols - n columns.
+/// The computation is parallelized over rows for efficiency.
 pub fn diff_csr_axis1_f64_i64(a: &Csr<f64, i64>, n: usize) -> Csr<f64, i64> {
     let nrows = a.nrows;
     let ncols = a.ncols;
     let out_cols = ncols.saturating_sub(n);
     if nrows == 0 || out_cols == 0 {
+        // Return an empty matrix if there are no rows or output columns
         return Csr::from_parts_unchecked(
             nrows,
             out_cols,
@@ -88,7 +110,7 @@ pub fn diff_csr_axis1_f64_i64(a: &Csr<f64, i64>, n: usize) -> Csr<f64, i64> {
             Vec::new(),
         );
     }
-    // First pass: count nnz per row
+    // First pass: count non-zero entries per row after difference
     let counts: Vec<usize> = (0..nrows)
         .into_par_iter()
         .map(|i| {
@@ -106,6 +128,7 @@ pub fn diff_csr_axis1_f64_i64(a: &Csr<f64, i64>, n: usize) -> Csr<f64, i64> {
             out.len()
         })
         .collect();
+    // Build the output indptr array
     let mut indptr = vec![0i64; nrows + 1];
     for i in 0..nrows {
         let add = i64::try_from(counts[i]).expect("row nnz count exceeds i64");
@@ -116,7 +139,7 @@ pub fn diff_csr_axis1_f64_i64(a: &Csr<f64, i64>, n: usize) -> Csr<f64, i64> {
     let mut data = vec![0.0f64; total];
     let pi_addr = indices.as_mut_ptr() as usize;
     let pv_addr = data.as_mut_ptr() as usize;
-    // Second pass: fill
+    // Second pass: fill output indices and data arrays in parallel
     (0..nrows).into_par_iter().for_each(|i| {
         let s = i64_to_usize(a.indptr[i]);
         let e = i64_to_usize(a.indptr[i + 1]);
@@ -142,12 +165,17 @@ pub fn diff_csr_axis1_f64_i64(a: &Csr<f64, i64>, n: usize) -> Csr<f64, i64> {
             }
         }
     });
+    // Construct the output CSR matrix
     Csr::from_parts_unchecked(nrows, out_cols, indptr, indices, data)
 }
 
 #[must_use]
+/// Computes the n-th order discrete forward difference along axis 0 (rows) for a CSR matrix.
+/// This is done by transposing the matrix, applying the axis-1 difference, and transposing back.
+/// Returns a new CSR matrix with the result.
 pub fn diff_csr_axis0_f64_i64(a: &Csr<f64, i64>, n: usize) -> Csr<f64, i64> {
     if n == 0 {
+        // No difference to compute, return a copy
         return Csr::from_parts_unchecked(
             a.nrows,
             a.ncols,
@@ -156,12 +184,15 @@ pub fn diff_csr_axis0_f64_i64(a: &Csr<f64, i64>, n: usize) -> Csr<f64, i64> {
             a.data.clone(),
         );
     }
+    // Transpose, apply axis-1 difference, then transpose back
     let t = transpose_f64_i64(a);
     let td = diff_csr_axis1_f64_i64(&t, n);
     transpose_f64_i64(&td)
 }
 
 #[must_use]
+/// Computes the n-th order discrete forward difference along axis 1 (columns) for a CSC matrix.
+/// Converts CSC to CSR, applies the difference, and converts back to CSC.
 pub fn diff_csc_axis1_f64_i64(a: &Csc<f64, i64>, n: usize) -> Csc<f64, i64> {
     let csr = csc_to_csr_f64_i64(a);
     let b = diff_csr_axis1_f64_i64(&csr, n);
@@ -169,6 +200,8 @@ pub fn diff_csc_axis1_f64_i64(a: &Csc<f64, i64>, n: usize) -> Csc<f64, i64> {
 }
 
 #[must_use]
+/// Computes the n-th order discrete forward difference along axis 0 (rows) for a CSC matrix.
+/// Converts CSC to CSR, applies the difference, and converts back to CSC.
 pub fn diff_csc_axis0_f64_i64(a: &Csc<f64, i64>, n: usize) -> Csc<f64, i64> {
     let csr = csc_to_csr_f64_i64(a);
     let b = diff_csr_axis0_f64_i64(&csr, n);
@@ -176,6 +209,8 @@ pub fn diff_csc_axis0_f64_i64(a: &Csc<f64, i64>, n: usize) -> Csc<f64, i64> {
 }
 
 #[must_use]
+/// Computes the n-th order discrete forward difference along axis 1 (columns) for a COO matrix.
+/// Converts COO to CSR, applies the difference, and converts back to COO.
 pub fn diff_coo_axis1_f64_i64(a: &Coo<f64, i64>, n: usize) -> Coo<f64, i64> {
     use crate::data_type_functions::astype::{coo_to_csr_f64_i64, csr_to_coo_f64_i64};
     let csr = coo_to_csr_f64_i64(a);
@@ -184,6 +219,8 @@ pub fn diff_coo_axis1_f64_i64(a: &Coo<f64, i64>, n: usize) -> Coo<f64, i64> {
 }
 
 #[must_use]
+/// Computes the n-th order discrete forward difference along axis 0 (rows) for a COO matrix.
+/// Converts COO to CSR, applies the difference, and converts back to COO.
 pub fn diff_coo_axis0_f64_i64(a: &Coo<f64, i64>, n: usize) -> Coo<f64, i64> {
     use crate::data_type_functions::astype::{coo_to_csr_f64_i64, csr_to_coo_f64_i64};
     let csr = coo_to_csr_f64_i64(a);

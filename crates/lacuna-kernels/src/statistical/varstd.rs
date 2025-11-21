@@ -1,4 +1,8 @@
 //! Variance and standard deviation reductions (CSR/CSC/COO/COOND)
+//
+// This module implements efficient variance and standard deviation reductions for sparse matrices in CSR, CSC, COO, and COOND formats.
+// Functions include global, row-wise, and column-wise variance/std, with careful handling of implicit zeros, Bessel's correction, and parallelization for performance.
+// SIMD is used for chunked reductions. Edge cases such as empty matrices and missing entries are handled to match NumPy-like semantics.
 
 #![allow(
     clippy::many_single_char_names,
@@ -18,6 +22,8 @@ use wide::f64x4;
 type AccEntry = (Vec<f64>, Vec<f64>, Vec<u8>, Vec<usize>);
 type AccTls = ThreadLocal<RefCell<Vec<Option<AccEntry>>>>;
 
+/// Compute the sum and sum of squares for a chunk of f64 values using SIMD for speed.
+/// Returns (0.0, 0.0) for empty chunks.
 #[inline]
 fn chunk_sum_sum2(chunk: &[f64]) -> (f64, f64) {
     if chunk.is_empty() {
@@ -50,6 +56,8 @@ fn chunk_sum_sum2(chunk: &[f64]) -> (f64, f64) {
     (s, s2)
 }
 
+/// Compute variance from sum, sum of squares, count, and correction.
+/// Returns 0.0 for n == 0 or denominator <= 0. Applies Bessel's correction if needed.
 #[inline]
 #[allow(clippy::cast_precision_loss)]
 fn variance_from_sums(s: f64, s2: f64, n: usize, correction: f64) -> f64 {
@@ -66,6 +74,7 @@ fn variance_from_sums(s: f64, s2: f64, n: usize, correction: f64) -> f64 {
     if var < 0.0 { 0.0 } else { var }
 }
 
+/// Compute standard deviation from variance.
 #[inline]
 fn std_from_var(v: f64) -> f64 {
     v.sqrt()
@@ -73,6 +82,8 @@ fn std_from_var(v: f64) -> f64 {
 
 // ===== CSR =====
 
+/// Compute the global variance of all elements in a CSR matrix.
+/// Returns 0.0 for empty matrices. Uses Bessel's correction if specified.
 #[must_use]
 pub fn var_f64(a: &Csr<f64, i64>, correction: f64) -> f64 {
     let n = a.nrows.saturating_mul(a.ncols);
@@ -87,11 +98,15 @@ pub fn var_f64(a: &Csr<f64, i64>, correction: f64) -> f64 {
     variance_from_sums(s, s2, n, correction)
 }
 
+/// Compute the global standard deviation of all elements in a CSR matrix.
+/// Returns 0.0 for empty matrices. Uses Bessel's correction if specified.
 #[must_use]
 pub fn std_f64(a: &Csr<f64, i64>, correction: f64) -> f64 {
     std_from_var(var_f64(a, correction))
 }
 
+/// Compute the variance of each row in a CSR matrix.
+/// Returns a vector of length nrows. Uses Bessel's correction if specified.
 #[must_use]
 pub fn row_vars_f64(a: &Csr<f64, i64>, correction: f64) -> Vec<f64> {
     let nrows = a.nrows;
@@ -113,6 +128,8 @@ pub fn row_vars_f64(a: &Csr<f64, i64>, correction: f64) -> Vec<f64> {
     out
 }
 
+/// Compute the standard deviation of each row in a CSR matrix.
+/// Returns a vector of length nrows. Uses Bessel's correction if specified.
 #[must_use]
 pub fn row_stds_f64(a: &Csr<f64, i64>, correction: f64) -> Vec<f64> {
     row_vars_f64(a, correction)
@@ -121,12 +138,14 @@ pub fn row_stds_f64(a: &Csr<f64, i64>, correction: f64) -> Vec<f64> {
         .collect()
 }
 
+/// Compute the variance of each column in a CSR matrix by transposing and reusing row-wise logic.
 #[must_use]
 pub fn col_vars_f64(a: &Csr<f64, i64>, correction: f64) -> Vec<f64> {
     let t = transpose_f64_i64(a);
     row_vars_f64(&t, correction)
 }
 
+/// Compute the standard deviation of each column in a CSR matrix by transposing and reusing row-wise logic.
 #[must_use]
 pub fn col_stds_f64(a: &Csr<f64, i64>, correction: f64) -> Vec<f64> {
     let t = transpose_f64_i64(a);
@@ -135,6 +154,8 @@ pub fn col_stds_f64(a: &Csr<f64, i64>, correction: f64) -> Vec<f64> {
 
 // ===== CSC =====
 
+/// Compute the global variance of all elements in a CSC matrix.
+/// Returns 0.0 for empty matrices. Uses Bessel's correction if specified.
 #[must_use]
 pub fn var_csc_f64(a: &Csc<f64, i64>, correction: f64) -> f64 {
     let n = a.nrows.saturating_mul(a.ncols);
@@ -149,11 +170,15 @@ pub fn var_csc_f64(a: &Csc<f64, i64>, correction: f64) -> f64 {
     variance_from_sums(s, s2, n, correction)
 }
 
+/// Compute the global standard deviation of all elements in a CSC matrix.
+/// Returns 0.0 for empty matrices. Uses Bessel's correction if specified.
 #[must_use]
 pub fn std_csc_f64(a: &Csc<f64, i64>, correction: f64) -> f64 {
     std_from_var(var_csc_f64(a, correction))
 }
 
+/// Compute the variance of each column in a CSC matrix.
+/// Returns a vector of length ncols. Uses Bessel's correction if specified.
 #[must_use]
 pub fn col_vars_csc_f64(a: &Csc<f64, i64>, correction: f64) -> Vec<f64> {
     let ncols = a.ncols;
@@ -175,6 +200,8 @@ pub fn col_vars_csc_f64(a: &Csc<f64, i64>, correction: f64) -> Vec<f64> {
     out
 }
 
+/// Compute the standard deviation of each column in a CSC matrix.
+/// Returns a vector of length ncols. Uses Bessel's correction if specified.
 #[must_use]
 pub fn col_stds_csc_f64(a: &Csc<f64, i64>, correction: f64) -> Vec<f64> {
     col_vars_csc_f64(a, correction)
@@ -183,12 +210,14 @@ pub fn col_stds_csc_f64(a: &Csc<f64, i64>, correction: f64) -> Vec<f64> {
         .collect()
 }
 
+/// Compute the variance of each row in a CSC matrix by transposing and reusing column-wise logic.
 #[must_use]
 pub fn row_vars_csc_f64(a: &Csc<f64, i64>, correction: f64) -> Vec<f64> {
     let t = transpose_csc_f64_i64(a);
     col_vars_csc_f64(&t, correction)
 }
 
+/// Compute the standard deviation of each row in a CSC matrix by transposing and reusing column-wise logic.
 #[must_use]
 pub fn row_stds_csc_f64(a: &Csc<f64, i64>, correction: f64) -> Vec<f64> {
     let t = transpose_csc_f64_i64(a);
@@ -197,6 +226,8 @@ pub fn row_stds_csc_f64(a: &Csc<f64, i64>, correction: f64) -> Vec<f64> {
 
 // ===== COO =====
 
+/// Compute the global variance of all elements in a COO matrix.
+/// Returns 0.0 for empty matrices. Uses Bessel's correction if specified.
 #[must_use]
 pub fn var_coo_f64(a: &Coo<f64, i64>, correction: f64) -> f64 {
     let n = a.nrows.saturating_mul(a.ncols);
@@ -211,11 +242,15 @@ pub fn var_coo_f64(a: &Coo<f64, i64>, correction: f64) -> f64 {
     variance_from_sums(s, s2, n, correction)
 }
 
+/// Compute the global standard deviation of all elements in a COO matrix.
+/// Returns 0.0 for empty matrices. Uses Bessel's correction if specified.
 #[must_use]
 pub fn std_coo_f64(a: &Coo<f64, i64>, correction: f64) -> f64 {
     std_from_var(var_coo_f64(a, correction))
 }
 
+/// Compute the variance of each row in a COO matrix.
+/// Returns a vector of length nrows. Uses Bessel's correction if specified.
 #[must_use]
 pub fn row_vars_coo_f64(a: &Coo<f64, i64>, correction: f64) -> Vec<f64> {
     let nrows = a.nrows;
@@ -285,6 +320,8 @@ pub fn row_vars_coo_f64(a: &Coo<f64, i64>, correction: f64) -> Vec<f64> {
     out
 }
 
+/// Compute the standard deviation of each row in a COO matrix.
+/// Returns a vector of length nrows. Uses Bessel's correction if specified.
 #[must_use]
 pub fn row_stds_coo_f64(a: &Coo<f64, i64>, correction: f64) -> Vec<f64> {
     row_vars_coo_f64(a, correction)
@@ -293,6 +330,8 @@ pub fn row_stds_coo_f64(a: &Coo<f64, i64>, correction: f64) -> Vec<f64> {
         .collect()
 }
 
+/// Compute the variance of each column in a COO matrix.
+/// Returns a vector of length ncols. Uses Bessel's correction if specified.
 #[must_use]
 pub fn col_vars_coo_f64(a: &Coo<f64, i64>, correction: f64) -> Vec<f64> {
     let ncols = a.ncols;
@@ -361,6 +400,8 @@ pub fn col_vars_coo_f64(a: &Coo<f64, i64>, correction: f64) -> Vec<f64> {
     out
 }
 
+/// Compute the standard deviation of each column in a COO matrix.
+/// Returns a vector of length ncols. Uses Bessel's correction if specified.
 #[must_use]
 pub fn col_stds_coo_f64(a: &Coo<f64, i64>, correction: f64) -> Vec<f64> {
     col_vars_coo_f64(a, correction)
@@ -371,6 +412,9 @@ pub fn col_stds_coo_f64(a: &Coo<f64, i64>, correction: f64) -> Vec<f64> {
 
 // ===== COOND =====
 
+/// Compute the product of dimensions, checking for overflow.
+/// Used to determine the total number of elements in an N-dimensional array.
+/// Panics if the product overflows usize.
 #[inline]
 fn product_checked(dims: &[usize]) -> usize {
     let mut acc: usize = 1;
@@ -380,6 +424,8 @@ fn product_checked(dims: &[usize]) -> usize {
     acc
 }
 
+/// Compute the global variance of all elements in an N-dimensional COO array.
+/// Returns 0.0 for empty arrays. Uses Bessel's correction if specified.
 #[must_use]
 pub fn var_coond_f64(a: &CooNd<f64, i64>, correction: f64) -> f64 {
     if a.shape.is_empty() {
@@ -397,6 +443,8 @@ pub fn var_coond_f64(a: &CooNd<f64, i64>, correction: f64) -> f64 {
     variance_from_sums(s, s2, n, correction)
 }
 
+/// Compute the global standard deviation of all elements in an N-dimensional COO array.
+/// Returns 0.0 for empty arrays. Uses Bessel's correction if specified.
 #[must_use]
 pub fn std_coond_f64(a: &CooNd<f64, i64>, correction: f64) -> f64 {
     std_from_var(var_coond_f64(a, correction))

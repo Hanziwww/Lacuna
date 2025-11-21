@@ -1,4 +1,8 @@
 //! Product reductions: prod, `row_prods`, `col_prods` (CSR/CSC/COO) and global COOND
+//
+// This module implements efficient product reductions for sparse matrices in CSR, CSC, COO, and COOND formats.
+// Functions include global, row-wise, and column-wise products, with careful handling of implicit zeros and parallelization for performance.
+// SIMD is used for chunked reductions. Edge cases such as empty matrices and missing entries are handled to match NumPy-like semantics.
 
 #![allow(
     clippy::many_single_char_names,
@@ -14,6 +18,8 @@ use std::cell::RefCell;
 use thread_local::ThreadLocal;
 use wide::f64x4;
 
+/// Compute the product of values in a chunk of f64 using SIMD for speed.
+/// Returns 1.0 for empty chunks.
 #[inline]
 fn chunk_prod(chunk: &[f64]) -> f64 {
     if chunk.is_empty() {
@@ -39,6 +45,9 @@ fn chunk_prod(chunk: &[f64]) -> f64 {
     acc
 }
 
+/// Compute the product of dimensions, checking for overflow.
+/// Used to determine the total number of elements in an N-dimensional array.
+/// Panics if the product overflows usize.
 #[inline]
 fn product_checked(dims: &[usize]) -> usize {
     let mut acc: usize = 1;
@@ -48,6 +57,9 @@ fn product_checked(dims: &[usize]) -> usize {
     acc
 }
 
+/// Compute the global product of all elements in a CSR matrix.
+/// Returns 1.0 for empty matrices. If there are missing entries (implicit zeros),
+/// the product is 0.0. Otherwise, multiplies all stored values in parallel.
 #[must_use]
 pub fn prod_f64(a: &Csr<f64, i64>) -> f64 {
     let full = a.nrows.saturating_mul(a.ncols);
@@ -63,6 +75,9 @@ pub fn prod_f64(a: &Csr<f64, i64>) -> f64 {
         .reduce(|| 1.0, |x, y| x * y)
 }
 
+/// Compute the product of each row in a CSR matrix.
+/// Returns a vector of length nrows. If a row has missing entries, the product is 0.0.
+/// Empty rows return 0.0. Otherwise, multiplies all stored values in the row.
 #[must_use]
 pub fn row_prods_f64(a: &Csr<f64, i64>) -> Vec<f64> {
     let nrows = a.nrows;
@@ -87,6 +102,7 @@ pub fn row_prods_f64(a: &Csr<f64, i64>) -> Vec<f64> {
     out
 }
 
+/// Compute the product of each column in a CSR matrix by transposing and reusing row-wise product logic.
 #[must_use]
 pub fn col_prods_f64(a: &Csr<f64, i64>) -> Vec<f64> {
     let t = transpose_f64_i64(a);
@@ -94,6 +110,9 @@ pub fn col_prods_f64(a: &Csr<f64, i64>) -> Vec<f64> {
     row_prods_f64(&t)
 }
 
+/// Compute the global product of all elements in a CSC matrix.
+/// Returns 1.0 for empty matrices. If there are missing entries, the product is 0.0.
+/// Otherwise, multiplies all stored values in parallel.
 #[must_use]
 pub fn prod_csc_f64(a: &Csc<f64, i64>) -> f64 {
     let full = a.nrows.saturating_mul(a.ncols);
@@ -109,6 +128,9 @@ pub fn prod_csc_f64(a: &Csc<f64, i64>) -> f64 {
         .reduce(|| 1.0, |x, y| x * y)
 }
 
+/// Compute the product of each column in a CSC matrix.
+/// Returns a vector of length ncols. If a column has missing entries, the product is 0.0.
+/// Empty columns return 1.0. Otherwise, multiplies all stored values in the column.
 #[must_use]
 pub fn col_prods_csc_f64(a: &Csc<f64, i64>) -> Vec<f64> {
     let ncols = a.ncols;
@@ -133,6 +155,7 @@ pub fn col_prods_csc_f64(a: &Csc<f64, i64>) -> Vec<f64> {
     out
 }
 
+/// Compute the product of each row in a CSC matrix by transposing and reusing column-wise product logic.
 #[must_use]
 pub fn row_prods_csc_f64(a: &Csc<f64, i64>) -> Vec<f64> {
     let t = transpose_csc_f64_i64(a);
@@ -140,6 +163,9 @@ pub fn row_prods_csc_f64(a: &Csc<f64, i64>) -> Vec<f64> {
     col_prods_csc_f64(&t)
 }
 
+/// Compute the global product of all elements in a COO matrix.
+/// Returns 1.0 for empty matrices. If there are missing entries, the product is 0.0.
+/// Otherwise, multiplies all stored values in parallel.
 #[must_use]
 pub fn prod_coo_f64(a: &Coo<f64, i64>) -> f64 {
     let full = a.nrows.saturating_mul(a.ncols);
@@ -155,6 +181,9 @@ pub fn prod_coo_f64(a: &Coo<f64, i64>) -> f64 {
         .reduce(|| 1.0, |x, y| x * y)
 }
 
+/// Compute the product of each row in a COO matrix.
+/// Returns a vector of length nrows. If a row has missing entries, the product is 0.0.
+/// Empty rows return 1.0. Otherwise, multiplies all stored values in the row.
 #[must_use]
 pub fn row_prods_coo_f64(a: &Coo<f64, i64>) -> Vec<f64> {
     let nrows = a.nrows;
@@ -225,6 +254,9 @@ pub fn row_prods_coo_f64(a: &Coo<f64, i64>) -> Vec<f64> {
     out
 }
 
+/// Compute the product of each column in a COO matrix.
+/// Returns a vector of length ncols. If a column has missing entries, the product is 0.0.
+/// Empty columns return 1.0. Otherwise, multiplies all stored values in the column.
 #[must_use]
 pub fn col_prods_coo_f64(a: &Coo<f64, i64>) -> Vec<f64> {
     let ncols = a.ncols;
@@ -295,6 +327,9 @@ pub fn col_prods_coo_f64(a: &Coo<f64, i64>) -> Vec<f64> {
     out
 }
 
+/// Compute the global product of all elements in an N-dimensional COO array.
+/// Returns 1.0 for empty arrays. If there are missing entries, the product is 0.0.
+/// Otherwise, multiplies all stored values in parallel.
 #[must_use]
 pub fn prod_coond_f64(a: &CooNd<f64, i64>) -> f64 {
     let full = product_checked(&a.shape);

@@ -1,3 +1,9 @@
+//! Min/max reductions for sparse matrices (CSR, CSC, COO)
+//
+// This module implements efficient min/max reductions for sparse matrices in CSR, CSC, and COO formats.
+// Functions include global, row-wise, and column-wise min/max, with careful handling of implicit zeros
+// and parallelization for performance. SIMD is used for chunked reductions. Edge cases such as empty
+// matrices and missing entries are handled to match NumPy-like semantics.
 #![allow(clippy::many_single_char_names, clippy::too_many_lines)]
 use crate::linalg::matrix_transpose::{transpose_csc_f64_i64, transpose_f64_i64};
 use crate::utility::util::{STRIPE, StripeAccs, i64_to_usize};
@@ -7,6 +13,8 @@ use std::cell::RefCell;
 use thread_local::ThreadLocal;
 use wide::f64x4;
 
+/// Compute the minimum value in a chunk of f64 values using SIMD for speed.
+/// Returns +inf for empty chunks.
 #[inline]
 fn chunk_min(chunk: &[f64]) -> f64 {
     if chunk.is_empty() {
@@ -35,6 +43,8 @@ fn chunk_min(chunk: &[f64]) -> f64 {
     acc
 }
 
+/// Compute the maximum value in a chunk of f64 values using SIMD for speed.
+/// Returns -inf for empty chunks.
 #[inline]
 fn chunk_max(chunk: &[f64]) -> f64 {
     if chunk.is_empty() {
@@ -63,6 +73,9 @@ fn chunk_max(chunk: &[f64]) -> f64 {
     acc
 }
 
+/// Compute the global minimum value in a CSR matrix.
+/// Returns 0.0 for empty matrices. If there are missing entries (implicit zeros),
+/// the minimum is the lesser of the minimum stored value and 0.0.
 #[must_use]
 pub fn min_f64(a: &Csr<f64, i64>) -> f64 {
     let nnz = a.data.len();
@@ -83,6 +96,9 @@ pub fn min_f64(a: &Csr<f64, i64>) -> f64 {
     }
 }
 
+/// Compute the global maximum value in a CSR matrix.
+/// Returns 0.0 for empty matrices. If there are missing entries (implicit zeros),
+/// the maximum is the greater of the maximum stored value and 0.0.
 #[must_use]
 pub fn max_f64(a: &Csr<f64, i64>) -> f64 {
     let nnz = a.data.len();
@@ -103,6 +119,9 @@ pub fn max_f64(a: &Csr<f64, i64>) -> f64 {
     }
 }
 
+/// Compute the minimum value for each row in a CSR matrix.
+/// Returns a vector of length nrows. If a row has missing entries, the minimum
+/// is the lesser of the minimum stored value and 0.0. Empty rows return 0.0.
 #[must_use]
 pub fn row_mins_f64(a: &Csr<f64, i64>) -> Vec<f64> {
     let nrows = a.nrows;
@@ -126,6 +145,9 @@ pub fn row_mins_f64(a: &Csr<f64, i64>) -> Vec<f64> {
     out
 }
 
+/// Compute the maximum value for each row in a CSR matrix.
+/// Returns a vector of length nrows. If a row has missing entries, the maximum
+/// is the greater of the maximum stored value and 0.0. Empty rows return 0.0.
 #[must_use]
 pub fn row_maxs_f64(a: &Csr<f64, i64>) -> Vec<f64> {
     let nrows = a.nrows;
@@ -149,6 +171,8 @@ pub fn row_maxs_f64(a: &Csr<f64, i64>) -> Vec<f64> {
     out
 }
 
+/// Compute the minimum value for each column in a CSR matrix by transposing and
+/// reusing row-wise min logic.
 #[must_use]
 pub fn col_mins_f64(a: &Csr<f64, i64>) -> Vec<f64> {
     let t = transpose_f64_i64(a);
@@ -156,12 +180,17 @@ pub fn col_mins_f64(a: &Csr<f64, i64>) -> Vec<f64> {
     row_mins_f64(&t)
 }
 
+/// Compute the maximum value for each column in a CSR matrix by transposing and
+/// reusing row-wise max logic.
 #[must_use]
 pub fn col_maxs_f64(a: &Csr<f64, i64>) -> Vec<f64> {
     let t = transpose_f64_i64(a);
     row_maxs_f64(&t)
 }
 
+/// Compute the global minimum value in a CSC matrix.
+/// Returns 0.0 for empty matrices. If there are missing entries, the minimum
+/// is the lesser of the minimum stored value and 0.0.
 #[must_use]
 pub fn min_csc_f64(a: &Csc<f64, i64>) -> f64 {
     if a.nrows == 0 || a.ncols == 0 {
@@ -180,6 +209,9 @@ pub fn min_csc_f64(a: &Csc<f64, i64>) -> f64 {
     }
 }
 
+/// Compute the global maximum value in a CSC matrix.
+/// Returns 0.0 for empty matrices. If there are missing entries, the maximum
+/// is the greater of the maximum stored value and 0.0.
 #[must_use]
 pub fn max_csc_f64(a: &Csc<f64, i64>) -> f64 {
     if a.nrows == 0 || a.ncols == 0 {
@@ -198,6 +230,9 @@ pub fn max_csc_f64(a: &Csc<f64, i64>) -> f64 {
     }
 }
 
+/// Compute the minimum value for each column in a CSC matrix.
+/// Returns a vector of length ncols. If a column has missing entries, the minimum
+/// is the lesser of the minimum stored value and 0.0. Empty columns return 0.0.
 #[must_use]
 pub fn col_mins_csc_f64(a: &Csc<f64, i64>) -> Vec<f64> {
     let ncols = a.ncols;
@@ -221,6 +256,9 @@ pub fn col_mins_csc_f64(a: &Csc<f64, i64>) -> Vec<f64> {
     out
 }
 
+/// Compute the maximum value for each column in a CSC matrix.
+/// Returns a vector of length ncols. If a column has missing entries, the maximum
+/// is the greater of the maximum stored value and 0.0. Empty columns return 0.0.
 #[must_use]
 pub fn col_maxs_csc_f64(a: &Csc<f64, i64>) -> Vec<f64> {
     let ncols = a.ncols;
@@ -244,6 +282,8 @@ pub fn col_maxs_csc_f64(a: &Csc<f64, i64>) -> Vec<f64> {
     out
 }
 
+/// Compute the minimum value for each row in a CSC matrix by transposing and
+/// reusing column-wise min logic.
 #[must_use]
 pub fn row_mins_csc_f64(a: &Csc<f64, i64>) -> Vec<f64> {
     let t = transpose_csc_f64_i64(a);
@@ -251,12 +291,17 @@ pub fn row_mins_csc_f64(a: &Csc<f64, i64>) -> Vec<f64> {
     col_mins_csc_f64(&t)
 }
 
+/// Compute the maximum value for each row in a CSC matrix by transposing and
+/// reusing column-wise max logic.
 #[must_use]
 pub fn row_maxs_csc_f64(a: &Csc<f64, i64>) -> Vec<f64> {
     let t = transpose_csc_f64_i64(a);
     col_maxs_csc_f64(&t)
 }
 
+/// Compute the global minimum value in a COO matrix.
+/// Returns 0.0 for empty matrices. If there are missing entries, the minimum
+/// is the lesser of the minimum stored value and 0.0.
 #[must_use]
 pub fn min_coo_f64(a: &Coo<f64, i64>) -> f64 {
     if a.nrows == 0 || a.ncols == 0 {
@@ -275,6 +320,9 @@ pub fn min_coo_f64(a: &Coo<f64, i64>) -> f64 {
     }
 }
 
+/// Compute the global maximum value in a COO matrix.
+/// Returns 0.0 for empty matrices. If there are missing entries, the maximum
+/// is the greater of the maximum stored value and 0.0.
 #[must_use]
 pub fn max_coo_f64(a: &Coo<f64, i64>) -> f64 {
     if a.nrows == 0 || a.ncols == 0 {
@@ -293,6 +341,9 @@ pub fn max_coo_f64(a: &Coo<f64, i64>) -> f64 {
     }
 }
 
+/// Compute the minimum value for each row in a COO matrix.
+/// Returns a vector of length nrows. If a row has missing entries, the minimum
+/// is the lesser of the minimum stored value and 0.0. Empty rows return 0.0.
 #[must_use]
 pub fn row_mins_coo_f64(a: &Coo<f64, i64>) -> Vec<f64> {
     let nrows = a.nrows;
@@ -365,6 +416,9 @@ pub fn row_mins_coo_f64(a: &Coo<f64, i64>) -> Vec<f64> {
     out
 }
 
+/// Compute the maximum value for each row in a COO matrix.
+/// Returns a vector of length nrows. If a row has missing entries, the maximum
+/// is the greater of the maximum stored value and 0.0. Empty rows return 0.0.
 #[must_use]
 pub fn row_maxs_coo_f64(a: &Coo<f64, i64>) -> Vec<f64> {
     let nrows = a.nrows;
@@ -437,6 +491,9 @@ pub fn row_maxs_coo_f64(a: &Coo<f64, i64>) -> Vec<f64> {
     out
 }
 
+/// Compute the minimum value for each column in a COO matrix.
+/// Returns a vector of length ncols. If a column has missing entries, the minimum
+/// is the lesser of the minimum stored value and 0.0. Empty columns return 0.0.
 #[must_use]
 pub fn col_mins_coo_f64(a: &Coo<f64, i64>) -> Vec<f64> {
     let ncols = a.ncols;
@@ -509,6 +566,9 @@ pub fn col_mins_coo_f64(a: &Coo<f64, i64>) -> Vec<f64> {
     out
 }
 
+/// Compute the maximum value for each column in a COO matrix.
+/// Returns a vector of length ncols. If a column has missing entries, the maximum
+/// is the greater of the maximum stored value and 0.0. Empty columns return 0.0.
 #[must_use]
 pub fn col_maxs_coo_f64(a: &Coo<f64, i64>) -> Vec<f64> {
     let ncols = a.ncols;
