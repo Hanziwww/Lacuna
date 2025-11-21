@@ -1,7 +1,5 @@
 import argparse
-import os
 import re
-import sys
 from html import escape
 from pathlib import Path
 
@@ -201,53 +199,8 @@ def main():
     p = argparse.ArgumentParser()
     p.add_argument("--input", default="docs/TODO.md")
     p.add_argument("--output", default="docs/roadmap.svg")
-    p.add_argument(
-        "--strict",
-        action="store_true",
-        help="Exit with non-zero code if input missing or no sections found",
-    )
     args = p.parse_args()
-
-    # Resolve paths robustly: prefer GITHUB_WORKSPACE, then repo root (parent of scripts), then CWD
-    script_dir = Path(__file__).resolve().parent
-    repo_root = script_dir.parent
-    workspace = Path(os.getenv("GITHUB_WORKSPACE", str(repo_root)))
-
-    # Output path
-    if Path(args.output).is_absolute():
-        output_path = Path(args.output)
-    else:
-        output_path = (workspace / args.output).resolve()
-
-    # Input path candidates
-    if Path(args.input).is_absolute():
-        input_candidates = [Path(args.input)]
-    else:
-        rel = Path(args.input)
-        input_candidates = [
-            (workspace / rel).resolve(),
-            (repo_root / rel).resolve(),
-            (Path.cwd() / rel).resolve(),
-            rel.resolve() if rel.exists() else rel,
-        ]
-
-    input_path = next((p for p in input_candidates if isinstance(p, Path) and p.exists()), None)
-    if input_path is None:
-        if args.strict:
-            print(f"ERROR: Input file not found: {args.input}", file=sys.stderr)
-            raise SystemExit(2)
-        # Graceful fallback: emit placeholder SVG
-        output_path.parent.mkdir(parents=True, exist_ok=True)
-        output_path.write_text(
-            "<svg xmlns='http://www.w3.org/2000/svg' width='700' height='100'>"
-            "<text x='12' y='40' style='font: 600 14px system-ui' fill='#c2410c'>Input file not found: </text>"
-            f"<text x='12' y='70' style='font: 600 14px system-ui' fill='#111'>{escape(str(args.input))}</text>"
-            "</svg>",
-            encoding="utf-8",
-        )
-        return
-
-    md = input_path.read_text(encoding="utf-8")
+    md = Path(args.input).read_text(encoding="utf-8")
     # only parse section 1) Not-yet-implemented by namespace
     m = re.search(r"^##\s*1\)\s*Not-yet-implemented.*$", md, re.M)
     if m:
@@ -257,16 +210,13 @@ def main():
         md_slice = md
     sections = parse_sections(md_slice)
     if not sections:
-        if args.strict:
-            print("ERROR: No sections found in input document", file=sys.stderr)
-            raise SystemExit(3)
         # Fallback: produce an empty SVG with message
-        output_path.write_text(
+        Path(args.output).write_text(
             "<svg xmlns='http://www.w3.org/2000/svg' width='600' height='80'><text x='10' y='40'>No sections found in docs/TODO.md</text></svg>",
             encoding="utf-8",
         )
         return
-    generate_svg(sections, output_path)
+    generate_svg(sections, Path(args.output))
 
 
 if __name__ == "__main__":
