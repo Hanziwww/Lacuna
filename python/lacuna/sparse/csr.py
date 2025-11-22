@@ -406,6 +406,23 @@ class CSR(SparseMatrix):
 
     __rmul__ = __mul__
 
+    def __neg__(self):
+        return self * -1.0
+
+    def __abs__(self):
+        if _core is None:
+            raise RuntimeError("native core is not available")
+        nrows, ncols, indptr, indices, data = self._parts()
+        oi, oj, ov, orr, occ = _core.abs_from_parts(nrows, ncols, indptr, indices, data, False)
+        return CSR(oi, oj, ov, (orr, occ), check=False)
+
+    def sign(self):
+        if _core is None:
+            raise RuntimeError("native core is not available")
+        nrows, ncols, indptr, indices, data = self._parts()
+        oi, oj, ov, orr, occ = _core.sign_from_parts(nrows, ncols, indptr, indices, data, False)
+        return CSR(oi, oj, ov, (orr, occ), check=False)
+
     def __add__(self, other):
         """Elementwise addition with another CSR (same shape).
 
@@ -485,6 +502,50 @@ class CSR(SparseMatrix):
             raise ZeroDivisionError("division by zero")
         return self * (1.0 / alpha)
 
+    def remainder(self, other):
+        if isinstance(other, CSR):
+            if _core is None:
+                raise RuntimeError("native core is not available")
+            a = self._parts()
+            b = other._parts()
+            ci, cj, cv, cr, cc = _core.remainder_from_parts(
+                a[0],
+                a[1],
+                a[2],
+                a[3],
+                a[4],
+                b[0],
+                b[1],
+                b[2],
+                b[3],
+                b[4],
+                False,
+            )
+            return CSR(ci, cj, cv, (cr, cc), check=False)
+        return NotImplemented
+
+    def power(self, other):
+        if isinstance(other, CSR):
+            if _core is None:
+                raise RuntimeError("native core is not available")
+            a = self._parts()
+            b = other._parts()
+            ci, cj, cv, cr, cc = _core.pow_from_parts(
+                a[0],
+                a[1],
+                a[2],
+                a[3],
+                a[4],
+                b[0],
+                b[1],
+                b[2],
+                b[3],
+                b[4],
+                False,
+            )
+            return CSR(ci, cj, cv, (cr, cc), check=False)
+        return NotImplemented
+
     def floor_divide(self, other):
         if isinstance(other, CSR):
             if _core is None:
@@ -520,6 +581,28 @@ class CSR(SparseMatrix):
             raise RuntimeError("native core is not available")
         nrows, ncols, indptr, indices, data = self._parts()
         oi, oj, ov, orr, occ = _core.floordiv_scalar_from_parts(
+            nrows, ncols, indptr, indices, data, alpha, False
+        )
+        return CSR(oi, oj, ov, (orr, occ), check=False)
+
+    def __mod__(self, alpha):
+        alpha = float(alpha)
+        if alpha == 0.0:
+            raise ZeroDivisionError("integer modulo by zero")
+        if _core is None:
+            raise RuntimeError("native core is not available")
+        nrows, ncols, indptr, indices, data = self._parts()
+        oi, oj, ov, orr, occ = _core.remainder_scalar_from_parts(
+            nrows, ncols, indptr, indices, data, alpha, False
+        )
+        return CSR(oi, oj, ov, (orr, occ), check=False)
+
+    def __pow__(self, alpha):
+        alpha = float(alpha)
+        if _core is None:
+            raise RuntimeError("native core is not available")
+        nrows, ncols, indptr, indices, data = self._parts()
+        oi, oj, ov, orr, occ = _core.pow_scalar_from_parts(
             nrows, ncols, indptr, indices, data, alpha, False
         )
         return CSR(oi, oj, ov, (orr, occ), check=False)

@@ -177,6 +177,25 @@ class COO(SparseArray):
 
     __rmul__ = __mul__
 
+    def __neg__(self):
+        return self * -1.0
+
+    def __abs__(self):
+        if _core is None:
+            raise RuntimeError("native core is not available")
+        rr, cc, vv, nr, nc = _core.abs_coo_from_parts(
+            self.shape[0], self.shape[1], self.row, self.col, self.data, False
+        )
+        return COO(rr, cc, vv, (int(nr), int(nc)), check=False)
+
+    def sign(self):
+        if _core is None:
+            raise RuntimeError("native core is not available")
+        rr, cc, vv, nr, nc = _core.sign_coo_from_parts(
+            self.shape[0], self.shape[1], self.row, self.col, self.data, False
+        )
+        return COO(rr, cc, vv, (int(nr), int(nc)), check=False)
+
     def __truediv__(self, alpha):
         alpha = float(alpha)
         if alpha == 0.0:
@@ -190,6 +209,26 @@ class COO(SparseArray):
         if _core is None:
             raise RuntimeError("native core is not available")
         rr, cc, vv, nr, nc = _core.floordiv_scalar_coo_from_parts(
+            self.shape[0], self.shape[1], self.row, self.col, self.data, alpha, False
+        )
+        return COO(rr, cc, vv, (int(nr), int(nc)), check=False)
+
+    def __mod__(self, alpha):
+        alpha = float(alpha)
+        if alpha == 0.0:
+            raise ZeroDivisionError("integer modulo by zero")
+        if _core is None:
+            raise RuntimeError("native core is not available")
+        rr, cc, vv, nr, nc = _core.remainder_scalar_coo_from_parts(
+            self.shape[0], self.shape[1], self.row, self.col, self.data, alpha, False
+        )
+        return COO(rr, cc, vv, (int(nr), int(nc)), check=False)
+
+    def __pow__(self, alpha):
+        alpha = float(alpha)
+        if _core is None:
+            raise RuntimeError("native core is not available")
+        rr, cc, vv, nr, nc = _core.pow_scalar_coo_from_parts(
             self.shape[0], self.shape[1], self.row, self.col, self.data, alpha, False
         )
         return COO(rr, cc, vv, (int(nr), int(nc)), check=False)

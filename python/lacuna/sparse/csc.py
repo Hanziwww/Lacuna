@@ -174,6 +174,25 @@ class CSC(SparseMatrix):
 
     __rmul__ = __mul__
 
+    def __neg__(self):
+        return self * -1.0
+
+    def __abs__(self):
+        if _core is None:
+            raise RuntimeError("native core is not available")
+        oi, oj, ov, orr, occ = _core.abs_csc_from_parts(
+            self.shape[0], self.shape[1], self.indptr, self.indices, self.data, False
+        )
+        return CSC(oi, oj, ov, (orr, occ), check=False)
+
+    def sign(self):
+        if _core is None:
+            raise RuntimeError("native core is not available")
+        oi, oj, ov, orr, occ = _core.sign_csc_from_parts(
+            self.shape[0], self.shape[1], self.indptr, self.indices, self.data, False
+        )
+        return CSC(oi, oj, ov, (orr, occ), check=False)
+
     def __add__(self, other):
         """Elementwise addition with another :class:`CSC`."""
         if isinstance(other, CSC):
@@ -245,6 +264,46 @@ class CSC(SparseMatrix):
             raise ZeroDivisionError("division by zero")
         return self * (1.0 / alpha)
 
+    def remainder(self, other):
+        if isinstance(other, CSC):
+            if _core is None:
+                raise RuntimeError("native core is not available")
+            ci, cj, cv, cr, cc = _core.remainder_csc_from_parts(
+                self.shape[0],
+                self.shape[1],
+                self.indptr,
+                self.indices,
+                self.data,
+                other.shape[0],
+                other.shape[1],
+                other.indptr,
+                other.indices,
+                other.data,
+                False,
+            )
+            return CSC(ci, cj, cv, (cr, cc), check=False)
+        return NotImplemented
+
+    def power(self, other):
+        if isinstance(other, CSC):
+            if _core is None:
+                raise RuntimeError("native core is not available")
+            ci, cj, cv, cr, cc = _core.pow_csc_from_parts(
+                self.shape[0],
+                self.shape[1],
+                self.indptr,
+                self.indices,
+                self.data,
+                other.shape[0],
+                other.shape[1],
+                other.indptr,
+                other.indices,
+                other.data,
+                False,
+            )
+            return CSC(ci, cj, cv, (cr, cc), check=False)
+        return NotImplemented
+
     def floor_divide(self, other):
         if isinstance(other, CSC):
             if _core is None:
@@ -279,6 +338,26 @@ class CSC(SparseMatrix):
             raise RuntimeError("native core is not available")
         # from_parts call
         oi, oj, ov, orr, occ = _core.floordiv_scalar_csc_from_parts(
+            self.shape[0], self.shape[1], self.indptr, self.indices, self.data, alpha, False
+        )
+        return CSC(oi, oj, ov, (orr, occ), check=False)
+
+    def __mod__(self, alpha):
+        alpha = float(alpha)
+        if alpha == 0.0:
+            raise ZeroDivisionError("integer modulo by zero")
+        if _core is None:
+            raise RuntimeError("native core is not available")
+        oi, oj, ov, orr, occ = _core.remainder_scalar_csc_from_parts(
+            self.shape[0], self.shape[1], self.indptr, self.indices, self.data, alpha, False
+        )
+        return CSC(oi, oj, ov, (orr, occ), check=False)
+
+    def __pow__(self, alpha):
+        alpha = float(alpha)
+        if _core is None:
+            raise RuntimeError("native core is not available")
+        oi, oj, ov, orr, occ = _core.pow_scalar_csc_from_parts(
             self.shape[0], self.shape[1], self.indptr, self.indices, self.data, alpha, False
         )
         return CSC(oi, oj, ov, (orr, occ), check=False)

@@ -23,11 +23,11 @@ def floor_divide(x, y):
 
 
 def remainder(x, y):
-    return getattr(_ns, "remainder")(x, y)
+    return _dp.remainder(x, y)
 
 
 def pow(x, y):
-    return getattr(_ns, "pow")(x, y)
+    return _dp.pow(x, y)
 
 
 def maximum(x, y):

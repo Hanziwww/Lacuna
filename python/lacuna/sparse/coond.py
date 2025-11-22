@@ -353,6 +353,60 @@ class COOND(SparseArray):
             tuple(int(x) for x in np.asarray(oshape, dtype=np.int64)), oidx, odata, check=False
         )
 
+    def __mod__(self, alpha):
+        alpha = float(alpha)
+        if alpha == 0.0:
+            raise ZeroDivisionError("integer modulo by zero")
+        if _core is None:
+            raise RuntimeError("native core is not available")
+        oshape, oidx, odata = _core.remainder_scalar_coond_from_parts(
+            self._shape_i64(), self.indices, self.data, alpha, False
+        )
+        return COOND(
+            tuple(int(x) for x in np.asarray(oshape, dtype=np.int64)), oidx, odata, check=False
+        )
+
+    def __pow__(self, alpha):
+        alpha = float(alpha)
+        if _core is None:
+            raise RuntimeError("native core is not available")
+        oshape, oidx, odata = _core.pow_scalar_coond_from_parts(
+            self._shape_i64(), self.indices, self.data, alpha, False
+        )
+        return COOND(
+            tuple(int(x) for x in np.asarray(oshape, dtype=np.int64)), oidx, odata, check=False
+        )
+
+    def __neg__(self):
+        if _core is None:
+            raise RuntimeError("native core is not available")
+        oshape, oidx, odata = _core.mul_scalar_coond_from_parts(
+            self._shape_i64(), self.indices, self.data, -1.0, False
+        )
+        return COOND(
+            tuple(int(x) for x in np.asarray(oshape, dtype=np.int64)), oidx, odata, check=False
+        )
+
+    def __abs__(self):
+        if _core is None:
+            raise RuntimeError("native core is not available")
+        oshape, oidx, odata = _core.abs_coond_from_parts(
+            self._shape_i64(), self.indices, self.data, False
+        )
+        return COOND(
+            tuple(int(x) for x in np.asarray(oshape, dtype=np.int64)), oidx, odata, check=False
+        )
+
+    def sign(self):
+        if _core is None:
+            raise RuntimeError("native core is not available")
+        oshape, oidx, odata = _core.sign_coond_from_parts(
+            self._shape_i64(), self.indices, self.data, False
+        )
+        return COOND(
+            tuple(int(x) for x in np.asarray(oshape, dtype=np.int64)), oidx, odata, check=False
+        )
+
     def __repr__(self):
         return f"COOND(shape={self.shape}, nnz={self.nnz}, dtype={self.data.dtype.name})"
 

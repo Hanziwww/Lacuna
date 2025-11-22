@@ -1,12 +1,13 @@
+from .. import _dispatch as _dp
 from .. import _namespace as _ns
 
 
 def abs(x):
-    return getattr(_ns, "abs")(x)
+    return _dp.abs(x)
 
 
 def negative(x):
-    return getattr(_ns, "negative")(x)
+    return _dp.negative(x)
 
 
 def positive(x):
@@ -14,7 +15,7 @@ def positive(x):
 
 
 def sign(x):
-    return getattr(_ns, "sign")(x)
+    return _dp.sign(x)
 
 
 def signbit(x):

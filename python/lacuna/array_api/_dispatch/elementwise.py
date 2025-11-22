@@ -8,6 +8,27 @@ def _is_sparse(x) -> bool:
     return isinstance(x, (CSR, CSC, COO, COOND))
 
 
+def abs(x):
+    if isinstance(x, (CSR, CSC, COO, COOND)):
+        return x.__abs__()
+    xp = _numpy_xp()
+    return xp.abs(x)
+
+
+def negative(x):
+    if isinstance(x, (CSR, CSC, COO, COOND)):
+        return -x
+    xp = _numpy_xp()
+    return xp.negative(x)
+
+
+def sign(x):
+    if isinstance(x, (CSR, CSC, COO, COOND)):
+        return x.sign()
+    xp = _numpy_xp()
+    return xp.sign(x)
+
+
 def add(x, y):
     if isinstance(x, CSR) and isinstance(y, CSR):
         return x + y
@@ -108,3 +129,55 @@ def floor_divide(x, y):
 
     xp = _numpy_xp()
     return xp.floor_divide(x, y)
+
+
+def remainder(x, y):
+    # sparse % scalar
+    if isinstance(y, (int, float)) and isinstance(x, (CSR, CSC, COO, COOND)):
+        return x % float(y)
+
+    # scalar % sparse would densify (implicit zeros), not supported
+    if isinstance(x, (int, float)) and _is_sparse(y):
+        raise NotImplementedError("scalar % sparse would densify; not supported")
+
+    # sparse % sparse
+    if isinstance(x, CSR) and isinstance(y, CSR):
+        return x.remainder(y)
+    if isinstance(x, CSC) and isinstance(y, CSC):
+        return x.remainder(y)
+    if isinstance(x, COOND) and isinstance(y, COOND):
+        raise NotImplementedError("COOND remainder is not implemented yet")
+
+    if _is_sparse(x) or _is_sparse(y):
+        raise NotImplementedError(
+            "remainder for sparse inputs is only implemented for CSR/CSC pairs and sparse%scalar"
+        )
+
+    xp = _numpy_xp()
+    return xp.remainder(x, y)
+
+
+def pow(x, y):
+    # sparse ** scalar
+    if isinstance(y, (int, float)) and isinstance(x, (CSR, CSC, COO, COOND)):
+        return x ** float(y)
+
+    # scalar ** sparse would densify: v**0 -> 1 everywhere exponent is zero
+    if isinstance(x, (int, float)) and _is_sparse(y):
+        raise NotImplementedError("scalar ** sparse would densify; not supported")
+
+    # sparse ** sparse (intersection semantics)
+    if isinstance(x, CSR) and isinstance(y, CSR):
+        return x.power(y)
+    if isinstance(x, CSC) and isinstance(y, CSC):
+        return x.power(y)
+    if isinstance(x, COOND) and isinstance(y, COOND):
+        raise NotImplementedError("COOND pow is not implemented yet")
+
+    if _is_sparse(x) or _is_sparse(y):
+        raise NotImplementedError(
+            "pow for sparse inputs is only implemented for CSR/CSC pairs and sparse**scalar"
+        )
+
+    xp = _numpy_xp()
+    return xp.pow(x, y)

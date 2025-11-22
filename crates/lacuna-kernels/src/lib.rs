@@ -26,6 +26,9 @@ pub mod search_sort;
 pub mod setops;
 
 // Re-export all public functions from new structure
+pub use elementwise::abs::{
+    abs_scalar_coo_f64, abs_scalar_coond_f64, abs_scalar_csc_f64, abs_scalar_f64,
+};
 pub use elementwise::add::{add_coond_f64_i64, add_csc_f64_i64, add_csr_f64_i64};
 pub use elementwise::divide::{div_csc_f64_i64, div_csr_f64_i64};
 pub use elementwise::floor_divide::{
@@ -36,6 +39,17 @@ pub use elementwise::multiply::{
     hadamard_broadcast_coond_f64_i64, hadamard_coond_f64_i64, hadamard_csc_f64_i64,
     hadamard_csr_f64_i64, mul_scalar_coo_f64, mul_scalar_coond_f64, mul_scalar_csc_f64,
     mul_scalar_f64,
+};
+pub use elementwise::power::{
+    pow_csc_f64_i64, pow_csr_f64_i64, pow_scalar_coo_f64, pow_scalar_coond_f64, pow_scalar_csc_f64,
+    pow_scalar_f64,
+};
+pub use elementwise::remainder::{
+    rem_csc_f64_i64, rem_csr_f64_i64, rem_scalar_coo_f64, rem_scalar_coond_f64, rem_scalar_csc_f64,
+    rem_scalar_f64,
+};
+pub use elementwise::sign::{
+    sign_scalar_coo_f64, sign_scalar_coond_f64, sign_scalar_csc_f64, sign_scalar_f64,
 };
 pub use elementwise::subtract::{sub_coond_f64_i64, sub_csc_f64_i64, sub_csr_f64_i64};
 

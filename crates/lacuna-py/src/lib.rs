@@ -464,6 +464,58 @@ fn _core(m: &Bound<PyModule>) -> PyResult<()> {
         crate::array_api::elementwise::div_csc_from_parts,
         m
     )?)?;
+    // power (pairwise CSR/CSC)
+    m.add_function(wrap_pyfunction!(
+        crate::array_api::elementwise::pow_from_parts,
+        m
+    )?)?;
+    m.add_function(wrap_pyfunction!(
+        crate::array_api::elementwise::pow_csc_from_parts,
+        m
+    )?)?;
+    // absolute value (unary)
+    m.add_function(wrap_pyfunction!(
+        crate::array_api::elementwise::abs_from_parts,
+        m
+    )?)?;
+    m.add_function(wrap_pyfunction!(
+        crate::array_api::elementwise::abs_csc_from_parts,
+        m
+    )?)?;
+    m.add_function(wrap_pyfunction!(
+        crate::array_api::elementwise::abs_coo_from_parts,
+        m
+    )?)?;
+    m.add_function(wrap_pyfunction!(
+        crate::array_api::elementwise::abs_coond_from_parts,
+        m
+    )?)?;
+    // sign (unary)
+    m.add_function(wrap_pyfunction!(
+        crate::array_api::elementwise::sign_from_parts,
+        m
+    )?)?;
+    m.add_function(wrap_pyfunction!(
+        crate::array_api::elementwise::sign_csc_from_parts,
+        m
+    )?)?;
+    m.add_function(wrap_pyfunction!(
+        crate::array_api::elementwise::sign_coo_from_parts,
+        m
+    )?)?;
+    m.add_function(wrap_pyfunction!(
+        crate::array_api::elementwise::sign_coond_from_parts,
+        m
+    )?)?;
+    // remainder (pairwise CSR/CSC)
+    m.add_function(wrap_pyfunction!(
+        crate::array_api::elementwise::remainder_from_parts,
+        m
+    )?)?;
+    m.add_function(wrap_pyfunction!(
+        crate::array_api::elementwise::remainder_csc_from_parts,
+        m
+    )?)?;
     // floor_divide
     m.add_function(wrap_pyfunction!(
         crate::array_api::elementwise::floordiv_from_parts,
@@ -490,12 +542,58 @@ fn _core(m: &Bound<PyModule>) -> PyResult<()> {
         crate::array_api::elementwise::floordiv_scalar_coond_from_parts,
         m
     )?)?;
+    // power scalar variants
+    m.add_function(wrap_pyfunction!(
+        crate::array_api::elementwise::pow_scalar_from_parts,
+        m
+    )?)?;
+    m.add_function(wrap_pyfunction!(
+        crate::array_api::elementwise::pow_scalar_csc_from_parts,
+        m
+    )?)?;
+    m.add_function(wrap_pyfunction!(
+        crate::array_api::elementwise::pow_scalar_coo_from_parts,
+        m
+    )?)?;
+    m.add_function(wrap_pyfunction!(
+        crate::array_api::elementwise::pow_scalar_coond_from_parts,
+        m
+    )?)?;
+    // remainder scalar variants
+    m.add_function(wrap_pyfunction!(
+        crate::array_api::elementwise::remainder_scalar_from_parts,
+        m
+    )?)?;
+    m.add_function(wrap_pyfunction!(
+        crate::array_api::elementwise::remainder_scalar_csc_from_parts,
+        m
+    )?)?;
+    m.add_function(wrap_pyfunction!(
+        crate::array_api::elementwise::remainder_scalar_coo_from_parts,
+        m
+    )?)?;
+    m.add_function(wrap_pyfunction!(
+        crate::array_api::elementwise::remainder_scalar_coond_from_parts,
+        m
+    )?)?;
     m.add_function(wrap_pyfunction!(
         crate::array_api::elementwise::hadamard_from_parts,
         m
     )?)?;
     m.add_function(wrap_pyfunction!(
         crate::array_api::elementwise::mul_scalar_from_parts,
+        m
+    )?)?;
+    m.add_function(wrap_pyfunction!(
+        crate::array_api::elementwise::mul_scalar_csc_from_parts,
+        m
+    )?)?;
+    m.add_function(wrap_pyfunction!(
+        crate::array_api::elementwise::mul_scalar_coo_from_parts,
+        m
+    )?)?;
+    m.add_function(wrap_pyfunction!(
+        crate::array_api::elementwise::mul_scalar_coond_from_parts,
         m
     )?)?;
     m.add_function(wrap_pyfunction!(

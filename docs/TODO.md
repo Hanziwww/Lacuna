@@ -2,15 +2,6 @@
 
 This document enumerates the remaining Array API functions to implement in Lacuna, organized by namespace, and provides detailed development paths for each category. The policy remains: sparse-first dispatch, no implicit densification, explicit capability declarations, and comprehensive tests.
 
-## 0) Current status (wired via `lacuna.array_api`)
-
-- linalg: matmul (2D sparse × dense, right-hand batching), matrix_transpose (CSR/CSC/COO)
-- reductions: sum, mean (CSR/CSC/COO 2D axes incl. negative/tuple, COOND any axes with keepdims), count_nonzero (CSR/CSC/COO 2D axes)
-- elementwise: add/subtract (CSR+CSR, CSC+CSC), multiply (scalar×sparse; CSR×CSR; CSC×CSC; COOND×COOND broadcast Hadamard)
-- manipulation (COOND): permute_dims, reshape
-- creation: zeros, eye (CSR)
-- dtypes (partial): astype(CSR→float64)
-
 ## 1) Not-yet-implemented by namespace (to be added)
 
 ### 1.1 linalg

@@ -1,4 +1,15 @@
-from .elementwise import add, divide, floor_divide, multiply, subtract
+from .elementwise import (
+    abs,
+    add,
+    divide,
+    floor_divide,
+    multiply,
+    negative,
+    pow,
+    remainder,
+    sign,
+    subtract,
+)
 from .manipulation import permute_dims, reshape
 from .reductions import (
     all,
