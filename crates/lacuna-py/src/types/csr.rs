@@ -4,9 +4,9 @@ use pyo3::prelude::*;
 
 use lacuna_core::Csr;
 use lacuna_kernels::{
-    add_csr_f64_i64, col_sums_f64, eliminate_zeros, hadamard_csr_f64_i64, mul_scalar_f64,
-    prune_eps, row_sums_f64, spmm_f64_i64, spmv_f64_i64, sub_csr_f64_i64, sum_f64,
-    transpose_f64_i64,
+    add_csr_f64_i64, col_sums_f64, div_csr_f64_i64, eliminate_zeros, floordiv_csr_f64_i64,
+    hadamard_csr_f64_i64, mul_scalar_f64, prune_eps, row_sums_f64, spmm_f64_i64, spmv_f64_i64,
+    sub_csr_f64_i64, sum_f64, transpose_f64_i64,
 };
 
 #[pyclass]
@@ -229,6 +229,48 @@ impl Csr64 {
         usize,
     )> {
         let c = py.detach(|| hadamard_csr_f64_i64(&self.inner, &other.inner));
+        Ok((
+            PyArray1::from_vec(py, c.indptr),
+            PyArray1::from_vec(py, c.indices),
+            PyArray1::from_vec(py, c.data),
+            c.nrows,
+            c.ncols,
+        ))
+    }
+
+    fn div<'py>(
+        &self,
+        py: Python<'py>,
+        other: &Self,
+    ) -> PyResult<(
+        Bound<'py, PyArray1<i64>>,
+        Bound<'py, PyArray1<i64>>,
+        Bound<'py, PyArray1<f64>>,
+        usize,
+        usize,
+    )> {
+        let c = py.detach(|| div_csr_f64_i64(&self.inner, &other.inner));
+        Ok((
+            PyArray1::from_vec(py, c.indptr),
+            PyArray1::from_vec(py, c.indices),
+            PyArray1::from_vec(py, c.data),
+            c.nrows,
+            c.ncols,
+        ))
+    }
+
+    fn floordiv<'py>(
+        &self,
+        py: Python<'py>,
+        other: &Self,
+    ) -> PyResult<(
+        Bound<'py, PyArray1<i64>>,
+        Bound<'py, PyArray1<i64>>,
+        Bound<'py, PyArray1<f64>>,
+        usize,
+        usize,
+    )> {
+        let c = py.detach(|| floordiv_csr_f64_i64(&self.inner, &other.inner));
         Ok((
             PyArray1::from_vec(py, c.indptr),
             PyArray1::from_vec(py, c.indices),

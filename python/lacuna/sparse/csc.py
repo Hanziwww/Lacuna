@@ -213,6 +213,76 @@ class CSC(SparseMatrix):
             raise RuntimeError("native handle is not available")
         return NotImplemented
 
+    def divide(self, other):
+        if isinstance(other, CSC):
+            if _core is None:
+                raise RuntimeError("native core is not available")
+            ha = getattr(self, "_handle", None)
+            hb = getattr(other, "_handle", None)
+            if ha is not None and hb is not None:
+                ci, cj, cv, cr, cc = ha.div(hb)
+                return CSC(ci, cj, cv, (cr, cc), check=False)
+            # from_parts fallback
+            ci, cj, cv, cr, cc = _core.div_csc_from_parts(
+                self.shape[0],
+                self.shape[1],
+                self.indptr,
+                self.indices,
+                self.data,
+                other.shape[0],
+                other.shape[1],
+                other.indptr,
+                other.indices,
+                other.data,
+                False,
+            )
+            return CSC(ci, cj, cv, (cr, cc), check=False)
+        return NotImplemented
+
+    def __truediv__(self, alpha):
+        alpha = float(alpha)
+        if alpha == 0.0:
+            raise ZeroDivisionError("division by zero")
+        return self * (1.0 / alpha)
+
+    def floor_divide(self, other):
+        if isinstance(other, CSC):
+            if _core is None:
+                raise RuntimeError("native core is not available")
+            ha = getattr(self, "_handle", None)
+            hb = getattr(other, "_handle", None)
+            if ha is not None and hb is not None:
+                ci, cj, cv, cr, cc = ha.floordiv(hb)
+                return CSC(ci, cj, cv, (cr, cc), check=False)
+            # from_parts fallback
+            ci, cj, cv, cr, cc = _core.floordiv_csc_from_parts(
+                self.shape[0],
+                self.shape[1],
+                self.indptr,
+                self.indices,
+                self.data,
+                other.shape[0],
+                other.shape[1],
+                other.indptr,
+                other.indices,
+                other.data,
+                False,
+            )
+            return CSC(ci, cj, cv, (cr, cc), check=False)
+        return NotImplemented
+
+    def __floordiv__(self, alpha):
+        alpha = float(alpha)
+        if alpha == 0.0:
+            raise ZeroDivisionError("division by zero")
+        if _core is None:
+            raise RuntimeError("native core is not available")
+        # from_parts call
+        oi, oj, ov, orr, occ = _core.floordiv_scalar_csc_from_parts(
+            self.shape[0], self.shape[1], self.indptr, self.indices, self.data, alpha, False
+        )
+        return CSC(oi, oj, ov, (orr, occ), check=False)
+
     def toarray(self):
         """Convert to a dense NumPy ``ndarray`` of shape ``(nrows, ncols)``."""
         nrows, ncols = self.shape

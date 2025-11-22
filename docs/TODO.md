@@ -15,33 +15,43 @@ This document enumerates the remaining Array API functions to implement in Lacun
 
 ### 1.1 linalg
 
-- [X] tensordot(x, y, *, axes=...)
-- [X] vecdot(x, y, *, axis=-1)
+- [X] **tensordot**(x, y, *, axes=...)
+- [X] **vecdot**(x, y, *, axis=-1)
 
 Notes: Sparse@sparse remains intentionally unimplemented for matmul.
 
 ### 1.2 reductions (beyond sum/mean/count_nonzero)
 
-- [X] prod(x, axis=None, keepdims=False)
-- [X] min(x, axis=None, keepdims=False)
-- [X] max(x, axis=None, keepdims=False)
-- [X] var(x, axis=None, correction=0, keepdims=False)
-- [X] std(x, axis=None, correction=0, keepdims=False)
-- [X] cumulative_prod(x, axis=None)
-- [X] cumulative_sum(x, axis=None)
-- [X] all(x, axis=None, keepdims=False)
-- [X] any(x, axis=None, keepdims=False)
-- [X] diff(x, *, n=1, axis=-1)  (sparse-first variant)
+- [X] **prod**(x, axis=None, keepdims=False)
+- [X] **min**(x, axis=None, keepdims=False)
+- [X] **max**(x, axis=None, keepdims=False)
+- [X] **var**(x, axis=None, correction=0, keepdims=False)
+- [X] **std**(x, axis=None, correction=0, keepdims=False)
+- [X] **cumulative_prod**(x, axis=None)
+- [X] **cumulative_sum**(x, axis=None)
+- [X] **all**(x, axis=None, keepdims=False)
+- [X] **any**(x, axis=None, keepdims=False)
+- [X] **diff**(x, *, n=1, axis=-1)  (sparse-first variant)
 
 Target first for CSR/CSC 2D; COOND support where feasible.
 
 ### 1.3 elementwise (arithmetic/compare/logical/unary/math)
 
 - Arithmetic:
-  - [ ] divide, floor_divide, remainder, pow
-  - [ ] negative, abs, sign
+  - [X] **divide**(x1: array | int | float | complex, x2: array | int | float | complex, /)
+  - [X] **floor_divide**(x1: array | int | float, x2: array | int | float, /)
+  - [ ] **remainder**(x1: array | int | float, x2: array | int | float, /)
+  - [ ] **pow**(x1: array | int | float | complex, x2: array | int | float | complex, /)
+  - [ ] **negative**(x: array, /)
+  - [ ] **abs**(x: array, /)
+  - [ ] **sign**(x: array, /)
 - Compare:
-  - [ ] equal, not_equal, less, less_equal, greater, greater_equal
+  - [ ] **equal**(x1: array | int | float | complex | bool, x2: array | int | float | complex | bool, /)
+  - [ ] **not_equal**(x1: array | int | float | complex | bool, x2: array | int | float | complex | bool, /)
+  - [ ] **less**(x1: array | int | float, x2: array | int | float, /)
+  - [ ] **less_equal**(x1: array | int | float, x2: array | int | float, /)
+  - [ ] **greater**(x1: array | int | float, x2: array | int | float, /)
+  - [ ] **greater_equal**(x1: array | int | float, x2: array | int | float, /)
 - Logical (boolean COOND/CSR upon availability):
   - [ ] logical_and, logical_or, logical_xor, logical_not
 - Math (real):
@@ -58,36 +68,36 @@ Notes:
 
 ### 1.4 manipulation (beyond COOND permute_dims/reshape)
 
-- [ ] squeeze(x, axis=None)
-- [ ] expand_dims(x, axis)
-- [ ] moveaxis(x, source, destination)
-- [ ] stack(arrays, axis=0)
-- [ ] concat(arrays, axis=0)
-- [ ] unstack(x, axis=0)
-- [ ] broadcast_to(x, shape)
-- [ ] broadcast_arrays(*arrays)
-- [ ] flip(x, axis=None)
-- [ ] roll(x, shift, axis=None)
-- [ ] repeat(x, repeats, axis=None)
-- [ ] tile(x, reps)
+- [ ] **squeeze**(x, axis=None)
+- [ ] **expand_dims**(x, axis)
+- [ ] **moveaxis**(x, source, destination)
+- [ ] **stack**(arrays, axis=0)
+- [ ] **concat**(arrays, axis=0)
+- [ ] **unstack**(x, axis=0)
+- [ ] **broadcast_to**(x, shape)
+- [ ] **broadcast_arrays**(*arrays)
+- [ ] **flip**(x, axis=None)
+- [ ] **roll**(x, shift, axis=None)
+- [ ] **repeat**(x, repeats, axis=None)
+- [ ] **tile**(x, reps)
 
 COOND-first where applicable; 2D formats as feasible with guarantees to not densify.
 
 ### 1.5 searching / indexing / sets / sorting (minimum viable)
 
-- [ ] nonzero(x)
-- [ ] where(condition, x, y)
-- [ ] argmax(x, axis=None, keepdims=False)
-- [ ] argmin(x, axis=None, keepdims=False)
-- [ ] take(x, indices, *, axis=None)
-- [ ] take_along_axis(x, indices, axis)
-- [ ] searchsorted(x, v, *, side="left")
-- [ ] argsort(x, axis=-1)
-- [ ] sort(x, axis=-1)
-- [ ] unique(x)
-- [ ] unique_all(x)
-- [ ] unique_counts(x)
-- [ ] unique_inverse(x)
+- [ ] **nonzero**(x)
+- [ ] **where**(condition, x, y)
+- [ ] **argmax**(x, axis=None, keepdims=False)
+- [ ] **argmin**(x, axis=None, keepdims=False)
+- [ ] **take**(x, indices, *, axis=None)
+- [ ] **take_along_axis**(x, indices, axis)
+- [ ] **searchsorted**(x, v, *, side="left")
+- [ ] **argsort**(x, axis=-1)
+- [ ] **sort**(x, axis=-1)
+- [ ] **unique**(x)
+- [ ] **unique_all**(x)
+- [ ] **unique_counts**(x)
+- [ ] **unique_inverse**(x)
 
 Provide sparse-first versions or explicit NotImplemented with no densify.
 

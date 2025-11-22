@@ -36,7 +36,7 @@ def __array_namespace_info__() -> Dict[str, Any]:
                 "var",
                 "std",
             ],
-            "elementwise": ["add", "subtract", "multiply"],
+            "elementwise": ["add", "subtract", "multiply", "divide", "floor_divide"],
             "creation": ["zeros", "eye"],
             "manipulation": ["permute_dims", "reshape"],
         },

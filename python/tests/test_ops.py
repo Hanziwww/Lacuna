@@ -74,3 +74,16 @@ def test_indexing():
     np.testing.assert_allclose(row0, np.array([1.0, 0.0, 2.0]))
     col1 = A[:, 1]
     np.testing.assert_allclose(col1, np.array([0.0, 3.0]))
+
+
+def test_divide_elementwise_csr():
+    A = make_simple()
+    D = A.divide(A)
+    exp = (A.toarray() != 0.0).astype(float)
+    np.testing.assert_allclose(D.toarray(), exp)
+
+
+def test_scalar_division_csr():
+    A = make_simple()
+    S = A / 2.0
+    np.testing.assert_allclose(S.toarray(), A.toarray() / 2.0)

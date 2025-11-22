@@ -4,9 +4,9 @@ use pyo3::prelude::*;
 
 use lacuna_core::Csc;
 use lacuna_kernels::{
-    add_csc_f64_i64, col_sums_csc_f64, eliminate_zeros_csc, hadamard_csc_f64_i64,
-    mul_scalar_csc_f64, prune_eps_csc, row_sums_csc_f64, spmm_csc_f64_i64, spmv_csc_f64_i64,
-    sub_csc_f64_i64, sum_csc_f64, transpose_csc_f64_i64,
+    add_csc_f64_i64, col_sums_csc_f64, div_csc_f64_i64, eliminate_zeros_csc, floordiv_csc_f64_i64,
+    hadamard_csc_f64_i64, mul_scalar_csc_f64, prune_eps_csc, row_sums_csc_f64, spmm_csc_f64_i64,
+    spmv_csc_f64_i64, sub_csc_f64_i64, sum_csc_f64, transpose_csc_f64_i64,
 };
 
 #[pyclass]
@@ -229,6 +229,48 @@ impl Csc64 {
         usize,
     )> {
         let c = py.detach(|| hadamard_csc_f64_i64(&self.inner, &other.inner));
+        Ok((
+            PyArray1::from_vec(py, c.indptr),
+            PyArray1::from_vec(py, c.indices),
+            PyArray1::from_vec(py, c.data),
+            c.nrows,
+            c.ncols,
+        ))
+    }
+
+    fn div<'py>(
+        &self,
+        py: Python<'py>,
+        other: &Self,
+    ) -> PyResult<(
+        Bound<'py, PyArray1<i64>>,
+        Bound<'py, PyArray1<i64>>,
+        Bound<'py, PyArray1<f64>>,
+        usize,
+        usize,
+    )> {
+        let c = py.detach(|| div_csc_f64_i64(&self.inner, &other.inner));
+        Ok((
+            PyArray1::from_vec(py, c.indptr),
+            PyArray1::from_vec(py, c.indices),
+            PyArray1::from_vec(py, c.data),
+            c.nrows,
+            c.ncols,
+        ))
+    }
+
+    fn floordiv<'py>(
+        &self,
+        py: Python<'py>,
+        other: &Self,
+    ) -> PyResult<(
+        Bound<'py, PyArray1<i64>>,
+        Bound<'py, PyArray1<i64>>,
+        Bound<'py, PyArray1<f64>>,
+        usize,
+        usize,
+    )> {
+        let c = py.detach(|| floordiv_csc_f64_i64(&self.inner, &other.inner));
         Ok((
             PyArray1::from_vec(py, c.indptr),
             PyArray1::from_vec(py, c.indices),

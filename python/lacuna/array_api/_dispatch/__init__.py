@@ -1,4 +1,4 @@
-from .elementwise import add, multiply, subtract
+from .elementwise import add, divide, floor_divide, multiply, subtract
 from .manipulation import permute_dims, reshape
 from .reductions import (
     all,

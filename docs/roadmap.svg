@@ -83,7 +83,8 @@
 <text class='pct on-fill' x='1063' y='158.0' dominant-baseline='middle' text-anchor='end'>100% (10/10)</text>
 <text class='label' x='24' y='206.0' dominant-baseline='middle'>1.3 elementwise (arithmetic/compare/logical/unary/math)</text>
 <rect class='bar-bg' x='531' y='188' width='540' height='36' rx='10' ry='10' />
-<text class='pct' x='1063' y='206.0' dominant-baseline='middle' text-anchor='end'>0% (0/9)</text>
+<rect class='bar-fill-low' x='531' y='188' width='59' height='36' rx='10' ry='10' filter='url(#shadow)' />
+<text class='pct' x='1063' y='206.0' dominant-baseline='middle' text-anchor='end'>11% (2/19)</text>
 <text class='label' x='24' y='254.0' dominant-baseline='middle'>1.4 manipulation (beyond COOND permute_dims/reshape)</text>
 <rect class='bar-bg' x='531' y='236' width='540' height='36' rx='10' ry='10' />
 <text class='pct' x='1063' y='254.0' dominant-baseline='middle' text-anchor='end'>0% (0/12)</text>
@@ -95,6 +96,6 @@
 <text class='pct' x='1063' y='350.0' dominant-baseline='middle' text-anchor='end'>0% (0/3)</text>
 <text class='sub' x='24' y='398.0' dominant-baseline='middle'>Overall</text>
 <rect class='bar-bg' x='531' y='380' width='540' height='36' rx='10' ry='10' />
-<rect class='bar-fill-low' x='531' y='380' width='132' height='36' rx='10' ry='10' filter='url(#shadow)' />
-<text class='pct' x='1063' y='398.0' dominant-baseline='middle' text-anchor='end'>24% (12/49)</text>
+<rect class='bar-fill-low' x='531' y='380' width='128' height='36' rx='10' ry='10' filter='url(#shadow)' />
+<text class='pct' x='1063' y='398.0' dominant-baseline='middle' text-anchor='end'>24% (14/59)</text>
 </svg>

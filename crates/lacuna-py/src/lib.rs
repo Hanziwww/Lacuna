@@ -457,6 +457,40 @@ fn _core(m: &Bound<PyModule>) -> PyResult<()> {
         m
     )?)?;
     m.add_function(wrap_pyfunction!(
+        crate::array_api::elementwise::div_from_parts,
+        m
+    )?)?;
+    m.add_function(wrap_pyfunction!(
+        crate::array_api::elementwise::div_csc_from_parts,
+        m
+    )?)?;
+    // floor_divide
+    m.add_function(wrap_pyfunction!(
+        crate::array_api::elementwise::floordiv_from_parts,
+        m
+    )?)?;
+    m.add_function(wrap_pyfunction!(
+        crate::array_api::elementwise::floordiv_csc_from_parts,
+        m
+    )?)?;
+    // scalar floor divide variants
+    m.add_function(wrap_pyfunction!(
+        crate::array_api::elementwise::floordiv_scalar_from_parts,
+        m
+    )?)?;
+    m.add_function(wrap_pyfunction!(
+        crate::array_api::elementwise::floordiv_scalar_csc_from_parts,
+        m
+    )?)?;
+    m.add_function(wrap_pyfunction!(
+        crate::array_api::elementwise::floordiv_scalar_coo_from_parts,
+        m
+    )?)?;
+    m.add_function(wrap_pyfunction!(
+        crate::array_api::elementwise::floordiv_scalar_coond_from_parts,
+        m
+    )?)?;
+    m.add_function(wrap_pyfunction!(
         crate::array_api::elementwise::hadamard_from_parts,
         m
     )?)?;

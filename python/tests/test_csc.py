@@ -60,3 +60,16 @@ def test_csc_spmm():
     B = np.array([[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]], dtype=np.float64)  # (3,2)
     Y = A @ B
     np.testing.assert_allclose(Y, np.array([[11.0, 14.0], [9.0, 12.0]], dtype=np.float64))
+
+
+def test_csc_divide_elementwise():
+    A = make_simple_csc()
+    D = A.divide(A)
+    exp = (A.toarray() != 0.0).astype(float)
+    np.testing.assert_allclose(D.toarray(), exp)
+
+
+def test_csc_scalar_div():
+    A = make_simple_csc()
+    S = A / 2.0
+    np.testing.assert_allclose(S.toarray(), A.toarray() / 2.0)

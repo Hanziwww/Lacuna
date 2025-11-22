@@ -452,6 +452,78 @@ class CSR(SparseMatrix):
             return CSR(ci, cj, cv, (cr, cc), check=False)
         return NotImplemented
 
+    def divide(self, other):
+        if isinstance(other, CSR):
+            if _core is None:
+                raise RuntimeError("native core is not available")
+            ha = getattr(self, "_handle", None)
+            hb = getattr(other, "_handle", None)
+            if ha is not None and hb is not None:
+                ci, cj, cv, cr, cc = ha.div(hb)
+                return CSR(ci, cj, cv, (cr, cc), check=False)
+            a = self._parts()
+            b = other._parts()
+            ci, cj, cv, cr, cc = _core.div_from_parts(
+                a[0],
+                a[1],
+                a[2],
+                a[3],
+                a[4],
+                b[0],
+                b[1],
+                b[2],
+                b[3],
+                b[4],
+                False,
+            )
+            return CSR(ci, cj, cv, (cr, cc), check=False)
+        return NotImplemented
+
+    def __truediv__(self, alpha):
+        alpha = float(alpha)
+        if alpha == 0.0:
+            raise ZeroDivisionError("division by zero")
+        return self * (1.0 / alpha)
+
+    def floor_divide(self, other):
+        if isinstance(other, CSR):
+            if _core is None:
+                raise RuntimeError("native core is not available")
+            ha = getattr(self, "_handle", None)
+            hb = getattr(other, "_handle", None)
+            if ha is not None and hb is not None:
+                ci, cj, cv, cr, cc = ha.floordiv(hb)
+                return CSR(ci, cj, cv, (cr, cc), check=False)
+            a = self._parts()
+            b = other._parts()
+            ci, cj, cv, cr, cc = _core.floordiv_from_parts(
+                a[0],
+                a[1],
+                a[2],
+                a[3],
+                a[4],
+                b[0],
+                b[1],
+                b[2],
+                b[3],
+                b[4],
+                False,
+            )
+            return CSR(ci, cj, cv, (cr, cc), check=False)
+        return NotImplemented
+
+    def __floordiv__(self, alpha):
+        alpha = float(alpha)
+        if alpha == 0.0:
+            raise ZeroDivisionError("division by zero")
+        if _core is None:
+            raise RuntimeError("native core is not available")
+        nrows, ncols, indptr, indices, data = self._parts()
+        oi, oj, ov, orr, occ = _core.floordiv_scalar_from_parts(
+            nrows, ncols, indptr, indices, data, alpha, False
+        )
+        return CSR(oi, oj, ov, (orr, occ), check=False)
+
     def __sub__(self, other):
         if isinstance(other, CSR):
             if _core is None:

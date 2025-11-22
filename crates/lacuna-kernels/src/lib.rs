@@ -27,6 +27,11 @@ pub mod setops;
 
 // Re-export all public functions from new structure
 pub use elementwise::add::{add_coond_f64_i64, add_csc_f64_i64, add_csr_f64_i64};
+pub use elementwise::divide::{div_csc_f64_i64, div_csr_f64_i64};
+pub use elementwise::floor_divide::{
+    floordiv_csc_f64_i64, floordiv_csr_f64_i64, floordiv_scalar_coo_f64, floordiv_scalar_coond_f64,
+    floordiv_scalar_csc_f64, floordiv_scalar_f64,
+};
 pub use elementwise::multiply::{
     hadamard_broadcast_coond_f64_i64, hadamard_coond_f64_i64, hadamard_csc_f64_i64,
     hadamard_csr_f64_i64, mul_scalar_coo_f64, mul_scalar_coond_f64, mul_scalar_csc_f64,

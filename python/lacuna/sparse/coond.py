@@ -340,6 +340,19 @@ class COOND(SparseArray):
         )
         return CSC(indptr, rows, vals, shape=(int(nr), int(nc)), check=False)
 
+    def __floordiv__(self, alpha):
+        alpha = float(alpha)
+        if alpha == 0.0:
+            raise ZeroDivisionError("division by zero")
+        if _core is None:
+            raise RuntimeError("native core is not available")
+        oshape, oidx, odata = _core.floordiv_scalar_coond_from_parts(
+            self._shape_i64(), self.indices, self.data, alpha, False
+        )
+        return COOND(
+            tuple(int(x) for x in np.asarray(oshape, dtype=np.int64)), oidx, odata, check=False
+        )
+
     def __repr__(self):
         return f"COOND(shape={self.shape}, nnz={self.nnz}, dtype={self.data.dtype.name})"
 

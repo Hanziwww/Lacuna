@@ -177,6 +177,23 @@ class COO(SparseArray):
 
     __rmul__ = __mul__
 
+    def __truediv__(self, alpha):
+        alpha = float(alpha)
+        if alpha == 0.0:
+            raise ZeroDivisionError("division by zero")
+        return self * (1.0 / alpha)
+
+    def __floordiv__(self, alpha):
+        alpha = float(alpha)
+        if alpha == 0.0:
+            raise ZeroDivisionError("division by zero")
+        if _core is None:
+            raise RuntimeError("native core is not available")
+        rr, cc, vv, nr, nc = _core.floordiv_scalar_coo_from_parts(
+            self.shape[0], self.shape[1], self.row, self.col, self.data, alpha, False
+        )
+        return COO(rr, cc, vv, (int(nr), int(nc)), check=False)
+
     def toarray(self):
         """Convert to a dense NumPy ``ndarray`` of shape ``(nrows, ncols)``."""
         nrows, ncols = self.shape

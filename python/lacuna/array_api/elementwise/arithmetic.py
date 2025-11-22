@@ -15,11 +15,11 @@ def multiply(x, y):
 
 
 def divide(x, y):
-    return getattr(_ns, "divide")(x, y)
+    return _dp.divide(x, y)
 
 
 def floor_divide(x, y):
-    return getattr(_ns, "floor_divide")(x, y)
+    return _dp.floor_divide(x, y)
 
 
 def remainder(x, y):

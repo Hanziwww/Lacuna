@@ -52,6 +52,12 @@ def test_coo_scalar_mul_and_toarray():
     np.testing.assert_allclose(arr, np.array([[0.0, 5.0, 0.0]], dtype=np.float64))
 
 
+def test_coo_scalar_div():
+    A = make_simple_coo()
+    S = A / 2.0
+    np.testing.assert_allclose(S.toarray(), A.toarray() / 2.0)
+
+
 def test_coo_spmm():
     A = make_simple_coo()
     B = np.array([[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]], dtype=np.float64)  # (3,2)
