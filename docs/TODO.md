@@ -31,11 +31,11 @@ Target first for CSR/CSC 2D; COOND support where feasible.
 - Arithmetic:
   - [X] **divide**(x1: array | int | float | complex, x2: array | int | float | complex, /)
   - [X] **floor_divide**(x1: array | int | float, x2: array | int | float, /)
-  - [ ] **remainder**(x1: array | int | float, x2: array | int | float, /)
-  - [ ] **pow**(x1: array | int | float | complex, x2: array | int | float | complex, /)
-  - [ ] **negative**(x: array, /)
-  - [ ] **abs**(x: array, /)
-  - [ ] **sign**(x: array, /)
+  - [X] **remainder**(x1: array | int | float, x2: array | int | float, /)
+  - [X] **pow**(x1: array | int | float | complex, x2: array | int | float | complex, /)
+  - [X] **negative**(x: array, /)
+  - [X] **abs**(x: array, /)
+  - [X] **sign**(x: array, /)
 - Compare:
   - [ ] **equal**(x1: array | int | float | complex | bool, x2: array | int | float | complex | bool, /)
   - [ ] **not_equal**(x1: array | int | float | complex | bool, x2: array | int | float | complex | bool, /)
