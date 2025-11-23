@@ -39,24 +39,24 @@ def minimum(x, y):
 
 
 def equal(x, y):
-    return getattr(_ns, "equal")(x, y)
+    return _dp.equal(x, y)
 
 
 def not_equal(x, y):
-    return getattr(_ns, "not_equal")(x, y)
+    return _dp.not_equal(x, y)
 
 
 def greater(x, y):
-    return getattr(_ns, "greater")(x, y)
+    return _dp.greater(x, y)
 
 
 def greater_equal(x, y):
-    return getattr(_ns, "greater_equal")(x, y)
+    return _dp.greater_equal(x, y)
 
 
 def less(x, y):
-    return getattr(_ns, "less")(x, y)
+    return _dp.less(x, y)
 
 
 def less_equal(x, y):
-    return getattr(_ns, "less_equal")(x, y)
+    return _dp.less_equal(x, y)

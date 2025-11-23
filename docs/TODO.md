@@ -37,13 +37,13 @@ Target first for CSR/CSC 2D; COOND support where feasible.
   - [X] **abs**(x: array, /)
   - [X] **sign**(x: array, /)
 - Compare:
-  - [ ] **equal**(x1: array | int | float | complex | bool, x2: array | int | float | complex | bool, /)
-  - [ ] **not_equal**(x1: array | int | float | complex | bool, x2: array | int | float | complex | bool, /)
-  - [ ] **less**(x1: array | int | float, x2: array | int | float, /)
-  - [ ] **less_equal**(x1: array | int | float, x2: array | int | float, /)
-  - [ ] **greater**(x1: array | int | float, x2: array | int | float, /)
-  - [ ] **greater_equal**(x1: array | int | float, x2: array | int | float, /)
-- Logical (boolean COOND/CSR upon availability):
+  - [X] **equal**(x1: array | int | float | complex | bool, x2: array | int | float | complex | bool, /)
+  - [X] **not_equal**(x1: array | int | float | complex | bool, x2: array | int | float | complex | bool, /)
+  - [X] **less**(x1: array | int | float, x2: array | int | float, /)
+  - [X] **less_equal**(x1: array | int | float, x2: array | int | float, /)
+  - [X] **greater**(x1: array | int | float, x2: array | int | float, /)
+  - [X] **greater_equal**(x1: array | int | float, x2: array | int | float, /)
+- Logical:
   - [ ] logical_and, logical_or, logical_xor, logical_not
 - Math (real):
   - [ ] exp, log, log1p, sqrt

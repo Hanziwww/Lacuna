@@ -42,6 +42,54 @@ def add(x, y):
     return xp.add(x, y)
 
 
+def equal(x, y):
+    if _is_sparse(x) or _is_sparse(y):
+
+        def _dense(v):
+            if isinstance(v, COOND):
+                arr = np.zeros(v.shape, dtype=v.data.dtype)
+                nnz = v.data.size
+                ndim = len(v.shape)
+                if nnz == 0:
+                    return arr
+                idx = np.asarray(v.indices, dtype=np.int64).reshape(nnz, ndim)
+                np.add.at(arr, tuple(idx.T), v.data)
+                return arr
+            if isinstance(v, (CSR, CSC, COO)):
+                return v.toarray()
+            return v
+
+        xd = _dense(x)
+        yd = _dense(y)
+        return np.equal(xd, yd)
+    xp = _numpy_xp()
+    return xp.equal(x, y)
+
+
+def not_equal(x, y):
+    if _is_sparse(x) or _is_sparse(y):
+
+        def _dense(v):
+            if isinstance(v, COOND):
+                arr = np.zeros(v.shape, dtype=v.data.dtype)
+                nnz = v.data.size
+                ndim = len(v.shape)
+                if nnz == 0:
+                    return arr
+                idx = np.asarray(v.indices, dtype=np.int64).reshape(nnz, ndim)
+                np.add.at(arr, tuple(idx.T), v.data)
+                return arr
+            if isinstance(v, (CSR, CSC, COO)):
+                return v.toarray()
+            return v
+
+        xd = _dense(x)
+        yd = _dense(y)
+        return np.not_equal(xd, yd)
+    xp = _numpy_xp()
+    return xp.not_equal(x, y)
+
+
 def subtract(x, y):
     if isinstance(x, CSR) and isinstance(y, CSR):
         return x - y
@@ -53,6 +101,102 @@ def subtract(x, y):
         )
     xp = _numpy_xp()
     return xp.subtract(x, y)
+
+
+def less(x, y):
+    if _is_sparse(x) or _is_sparse(y):
+
+        def _dense(v):
+            if isinstance(v, COOND):
+                arr = np.zeros(v.shape, dtype=v.data.dtype)
+                nnz = v.data.size
+                ndim = len(v.shape)
+                if nnz == 0:
+                    return arr
+                idx = np.asarray(v.indices, dtype=np.int64).reshape(nnz, ndim)
+                np.add.at(arr, tuple(idx.T), v.data)
+                return arr
+            if isinstance(v, (CSR, CSC, COO)):
+                return v.toarray()
+            return v
+
+        xd = _dense(x)
+        yd = _dense(y)
+        return np.less(xd, yd)
+    xp = _numpy_xp()
+    return xp.less(x, y)
+
+
+def less_equal(x, y):
+    if _is_sparse(x) or _is_sparse(y):
+
+        def _dense(v):
+            if isinstance(v, COOND):
+                arr = np.zeros(v.shape, dtype=v.data.dtype)
+                nnz = v.data.size
+                ndim = len(v.shape)
+                if nnz == 0:
+                    return arr
+                idx = np.asarray(v.indices, dtype=np.int64).reshape(nnz, ndim)
+                np.add.at(arr, tuple(idx.T), v.data)
+                return arr
+            if isinstance(v, (CSR, CSC, COO)):
+                return v.toarray()
+            return v
+
+        xd = _dense(x)
+        yd = _dense(y)
+        return np.less_equal(xd, yd)
+    xp = _numpy_xp()
+    return xp.less_equal(x, y)
+
+
+def greater(x, y):
+    if _is_sparse(x) or _is_sparse(y):
+
+        def _dense(v):
+            if isinstance(v, COOND):
+                arr = np.zeros(v.shape, dtype=v.data.dtype)
+                nnz = v.data.size
+                ndim = len(v.shape)
+                if nnz == 0:
+                    return arr
+                idx = np.asarray(v.indices, dtype=np.int64).reshape(nnz, ndim)
+                np.add.at(arr, tuple(idx.T), v.data)
+                return arr
+            if isinstance(v, (CSR, CSC, COO)):
+                return v.toarray()
+            return v
+
+        xd = _dense(x)
+        yd = _dense(y)
+        return np.greater(xd, yd)
+    xp = _numpy_xp()
+    return xp.greater(x, y)
+
+
+def greater_equal(x, y):
+    if _is_sparse(x) or _is_sparse(y):
+
+        def _dense(v):
+            if isinstance(v, COOND):
+                arr = np.zeros(v.shape, dtype=v.data.dtype)
+                nnz = v.data.size
+                ndim = len(v.shape)
+                if nnz == 0:
+                    return arr
+                idx = np.asarray(v.indices, dtype=np.int64).reshape(nnz, ndim)
+                np.add.at(arr, tuple(idx.T), v.data)
+                return arr
+            if isinstance(v, (CSR, CSC, COO)):
+                return v.toarray()
+            return v
+
+        xd = _dense(x)
+        yd = _dense(y)
+        return np.greater_equal(xd, yd)
+    xp = _numpy_xp()
+    return xp.greater_equal(x, y)
 
 
 def divide(x, y):

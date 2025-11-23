@@ -38,6 +38,12 @@ def __array_namespace_info__() -> Dict[str, Any]:
             ],
             "elementwise": [
                 "abs",
+                "equal",
+                "not_equal",
+                "less",
+                "less_equal",
+                "greater",
+                "greater_equal",
                 "add",
                 "subtract",
                 "multiply",
